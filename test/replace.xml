@@ -1,0 +1,11 @@
+<itemDelta>
+    <modificationType>replace</t:modificationType>
+    <value>
+        <name>SMTP</c:name>
+        <server>
+            <host>$(smtp_host)</c:host>
+            <port>$(smtp_port)</c:port>
+        </server>
+        <defaultFrom>$(smtp_from)</defaultFrom>
+    </value>
+</itemDelta>
