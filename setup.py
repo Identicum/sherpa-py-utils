@@ -8,7 +8,7 @@ from setuptools import setup
 
 setup(
     name='sherpa-py-utils',
-    version='1.0.0',
+    version='1.0.20240123',
     description='Python utilities on Identicum projects',
     url='git@github.com:Identicum/sherpa-py-utils.git',
     author='Identicum',
@@ -17,5 +17,5 @@ setup(
     install_requires=['requests', 'psutil', 'PyJWT'],
     packages=['sherpa', 'sherpa.utils'],
     zip_safe=False,
-    python_requires='>=2.7'
+    python_requires='>=3.0'
 )
