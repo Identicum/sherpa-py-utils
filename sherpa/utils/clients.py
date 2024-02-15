@@ -34,9 +34,9 @@ class OIDCClient:
         url = self.idp_url + "/.well-known/openid-configuration"
         self.logger.trace("GET request to {}", url)
         response = requests.get(url, verify=self.verify)
-        http.validate_response(response, self.logger, "Can not reach Wellknown endpoint, with idp_url {} - DNS or host file?", self.idp_url)
+        http.validate_response(response, self.logger, "Can not reach well-known endpoint, with idp_url {} - DNS or host file?", self.idp_url)
         well_known_json = response.json()
-        self.logger.trace("obtained wellknown info: {}", well_known_json)
+        self.logger.trace("obtained well-known info: {}", well_known_json)
         return well_known_json
 
     def validate_idp(self):
@@ -101,6 +101,25 @@ class OIDCClient:
                 return False
         return False if error_claim is not None and error_claim in decoded_token else True
 
+    def do_ropc(self, client_credentials, username, password, scope="openid"):
+        """
+        returns JSON from response
+        :param username
+        :param password
+        :param scope(s)
+        :return: a dict that represents the JSON response
+        """
+        headers = self._get_basic_header(client_credentials)
+        payload = {
+            'grant_type': 'password',
+            'username': username,
+            'password': password,
+            'scope': scope
+        }
+        http_response = requests.post(self.well_known['token_endpoint'], data=payload, headers=headers, verify=self.verify)
+        json_response = http_response.json()
+        self.logger.debug("HTTP Response: {}", str(json_response))
+        return json_response
 
 class UMAClient:
     """
