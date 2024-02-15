@@ -19,7 +19,7 @@ class OIDCClient:
         """
         Params
         :param idp_url: for instance 'https://myidp.myorg.com'
-        :param logger: RoundServices log. If None, default will be created
+        :param logger: Identicum logger. If None, default will be created
         """
         self.idp_url = idp_url
         self.logger = logger
@@ -112,7 +112,7 @@ class UMAClient:
         Constructor
         :param api_base_endpoint: for instance "https://myidp.org.com/identity/restv1/api/v1
         :param b64_client_credentials: 'client_id:client_secret' in base64 encoded format
-        :param logger: RoundServices log. If it is None, default will be created.
+        :param logger: Identicum logger. If it is None, default will be created.
         """
         self.api_base_endpoint = api_base_endpoint
         self.b64_client_credentials = b64_client_credentials
