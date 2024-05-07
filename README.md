@@ -1,6 +1,6 @@
 # sherpa-py-utils
 
-Modules used across all RS IAM deployment projects
+Modules used across all Identicum IAM deployment projects
 
 ## Setup
 

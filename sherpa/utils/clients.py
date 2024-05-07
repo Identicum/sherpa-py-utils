@@ -191,7 +191,9 @@ class UMAClient:
                 https://gluu.org/auth/oxtrust.saml.read \
                 https://gluu.org/auth/oxtrust.saml.write \
                 https://gluu.org/auth/oxtrust.scope.read \
-                https://gluu.org/auth/oxtrust.scope.write'
+                https://gluu.org/auth/oxtrust.scope.write \
+                https://gluu.org/auth/oxtrust.smtpconfiguration.read \
+                https://gluu.org/auth/oxtrust.smtpconfiguration.write'
             }
         return OIDCClient(idp_url, self.logger, self.verify).request_to_token_endpoint(self.b64_client_credentials, payload)['access_token']
 
