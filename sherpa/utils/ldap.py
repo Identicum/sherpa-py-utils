@@ -69,5 +69,16 @@ class LDAP(object):
 		object_dn = "ou={},{}".format(name, base_dn)
 		self._logger.debug("Creating OU: {}.", object_dn)
 		attrs = {}
-		attrs['objectClass'] = [b'organizationalUnit']
+		attrs['objectClass'] = ['organizationalUnit'.encode()]
+		self.create_object(object_dn, attrs)
+
+
+	def create_ad_group(self, base_dn, name, members):
+		object_dn = "cn={},{}".format(name, base_dn)
+		self._logger.debug("Creating Group: {}.", object_dn)
+		attrs = {}
+		attrs['objectClass'] = ['group'.encode()]
+		attrs['sAMAccountName'] = [name.encode()]
+		if(len(members) > 0):
+			attrs['member'] = members
 		self.create_object(object_dn, attrs)
