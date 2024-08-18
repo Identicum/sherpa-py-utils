@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 import os
-import shutil
 import sys
 
-from sherpa.utils.basics import Logger
-from sherpa.utils.basics import Properties
-from sherpa.utils.ldap import LDAP;
+sys.path.insert(1, "../sherpa/")
+from utils.basics import Logger
+from utils.basics import Properties
+from utils.ldap import LDAP;
 
 def main():
 	properties = Properties("default.properties", "default.properties")

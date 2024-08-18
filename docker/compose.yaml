@@ -9,8 +9,7 @@ services:
     pull_policy: always
     restart: always
     volumes:
-      - ../sherpa/utils/:/usr/local/lib/python3.12/site-packages/sherpa/utils/
-      - ./:/usr/home/
+      - ../:/usr/home/
   samba:
     container_name: samba
     image: instantlinux/samba-dc:latest
