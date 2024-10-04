@@ -17,7 +17,7 @@ class LDAP(object):
 		logger.trace("Initializing LDAP. ip_address: {}, user_dn: {}, user_password: {}", ip_address, user_dn, user_password)
 		self.protocol = protocol
 		self._logger = logger
-		self._logger.debug("OIDCClient version: " + version("sherpa-py-utils"))
+		self._logger.debug("LDAP version: " + version("sherpa-py-utils"))
 		ldap_url = "{}://{}:{}".format(protocol, ip_address, port)
 		for iteration in range(iterations):
 			try:
