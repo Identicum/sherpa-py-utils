@@ -9,6 +9,7 @@ import json
 import jwt
 from sherpa.utils import http, validators
 from sherpa.utils.basics import Logger
+from importlib.metadata import version
 
 
 class OIDCClient:
@@ -24,6 +25,7 @@ class OIDCClient:
         self.idp_url = idp_url
         self.logger = logger
         self.verify = verify
+        self.logger.debug("OIDCClient version: " + version("sherpa-py-utils"))
         self.well_known = self.get_well_known()
 
     def get_well_known(self):
@@ -117,6 +119,7 @@ class UMAClient:
         self.api_base_endpoint = api_base_endpoint
         self.b64_client_credentials = b64_client_credentials
         self.logger = logger
+        self.logger.debug("UMAClient version: " + version("sherpa-py-utils"))
         self.verify = verify
         self.is_gluu_45 = is_gluu_45
         self.logger.debug("is_gluu_45 deployment: {}", is_gluu_45)

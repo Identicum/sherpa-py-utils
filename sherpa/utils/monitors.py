@@ -5,6 +5,7 @@
 #
 
 from sherpa.utils.clients import OIDCClient
+from importlib.metadata import version
 
 import time
 
@@ -23,6 +24,7 @@ class OIDCMonitor:
         :param b64_client_credentials = 'user:pwd' in b64 format from client account
         """
         self.logger = logger
+        self.logger.debug("OIDCMonitor version: " + version("sherpa-py-utils"))
         self.cloudwatch = cloudwatch
         self.oidc_client = OIDCClient(idp_base_url, logger, verify)
         self.b64_client_credentials = b64_client_credentials
