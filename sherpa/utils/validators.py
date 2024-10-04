@@ -8,7 +8,7 @@ def validate_or_raise_for_value(boolean_value, logger, msg, *args):
 	"""
 	If the boolean value received is false, it will throw a ValueError, and raise an error
 	:param boolean_value:
-	:param logger: RoundServices log - if None, will not log just throw error to default output
+	:param logger: Identicum logger - if None, will not log just throw error to default output
 	:param msg: in case of error, it is a template
 	:param args: params from msg
 	:return: raise an error

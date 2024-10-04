@@ -1,0 +1,27 @@
+secrets:
+  samba-admin-password:
+    file: ./samba_admin.password
+
+services:
+  sherpa:
+    container_name: sherpa
+    build: .
+    pull_policy: always
+    restart: always
+    volumes:
+      - ../:/usr/home/
+  samba:
+    container_name: samba
+    image: instantlinux/samba-dc:latest
+    pull_policy: always
+    restart: always
+    environment:
+      LOG_LEVEL: 3
+      NETBIOS_NAME: sambadc1
+      REALM: "sherpa-demo.com"
+      DOMAIN_ACTION: provision
+    secrets:
+      - samba-admin-password
+    ports:
+      - 389:389
+      - 636:636

@@ -1,6 +1,6 @@
 # sherpa-py-utils
 
-Modules used across all RS IAM deployment projects
+Modules used across all Identicum IAM deployment projects
 
 ## Setup
 
@@ -13,7 +13,7 @@ Modules used across all RS IAM deployment projects
 ## Deploy
 
 ```sh
-python3 -m pip install --upgrade --force-reinstall git+https://github.com/Identicum/sherpa-py-utils.git@main
+python3 -m pip install --upgrade git+https://github.com/Identicum/sherpa-py-utils.git@main
 ```
 
 ## Coding

@@ -13,7 +13,7 @@ def validate_response(response, logger, msg, *args):
 	"""
 	validate a response from a requests obj, logs and raise an IOError if it is needed, also close connection.
 	:param response: requests obj
-	:param logger: RoundServices log - if None, will not log just throw error to default output
+	:param logger: Identicum logger - if None, will not log just throw error to default output
 	:param msg: in case of error, it is a template
 	:param args: params from msg
 	:return: raise an error

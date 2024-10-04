@@ -18,7 +18,7 @@ class OIDCMonitor:
     def __init__(self, logger, cloudwatch, idp_base_url, b64_client_credentials, verify=False):
         """
         Params
-        :param logger =  RoundServices log.
+        :param logger =  Identicum logger.
         :param cloudwatch = AWS object to put metrics
         :param idp_base_url = for idp instance 'https://myidp.myorg.com'
         :param b64_client_credentials = 'user:pwd' in b64 format from client account
