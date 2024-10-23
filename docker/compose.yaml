@@ -5,19 +5,21 @@ secrets:
 services:
   sherpa:
     container_name: sherpa
-    build: .
+    image: ghcr.io/identicum/sherpa-deploy:latest
     pull_policy: always
     restart: always
     volumes:
       - ../:/usr/home/
   samba:
     container_name: samba
-    image: instantlinux/samba-dc:latest
+    image: ghcr.io/identicum/samba-dc:latest
     pull_policy: always
     restart: always
+    cap_add:
+      - SYS_ADMIN
     environment:
       LOG_LEVEL: 3
-      NETBIOS_NAME: sambadc1
+      NETBIOS_NAME: sherpadc1
       REALM: "sherpa-demo.com"
       DOMAIN_ACTION: provision
     secrets:
@@ -25,3 +27,9 @@ services:
     ports:
       - 389:389
       - 636:636
+    volumes:
+      - ./samba.conf:/etc/samba/conf.d/0global.conf
+    networks:
+      default:
+        aliases:
+          - sherpadc1.sherpa-demo.com

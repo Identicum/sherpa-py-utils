@@ -36,6 +36,15 @@ class LDAP(object):
 		logger.error("Failed to connect to LDAP {}.".format(protocol, ip_address, port))
 
 
+	def get_object(self, object_dn):
+		self._logger.debug("Getting object: {}.", object_dn)
+		query = "objectclass=*"
+		result = self._conn.search_s(object_dn, ldap.SCOPE_BASE, query)
+		for item in result:
+			self._logger.debug("Found object: {}", item)
+		return item
+
+
 	def create_object(self, object_dn, object_attrs):
 		self._logger.debug("Creating object: {}.", object_dn)
 		addLdif = modlist.addModlist(object_attrs)

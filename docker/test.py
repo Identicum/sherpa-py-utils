@@ -20,9 +20,9 @@ def run(logger, properties):
 
 	ip_address = "samba"
 	base_dn = "dc=sherpa-demo,dc=com"
-	user_dn = "cn=administrator,cn=users,{}".format(base_dn)
-	user_password = "Sherpa.2024"
-	ldap = LDAP(ip_address=ip_address, user_dn=user_dn, user_password=user_password, logger=logger)
+	admin_dn = "cn=administrator,cn=users,{}".format(base_dn)
+	admin_password = "Sherpa.2024"
+	ldap = LDAP(ip_address=ip_address, user_dn=admin_dn, user_password=admin_password, logger=logger)
 	users_base_dn = "ou=sherpa_users,{}".format(base_dn)
 	groups_base_dn = "ou=sherpa_groups,{}".format(base_dn)
 
@@ -34,6 +34,7 @@ def run(logger, properties):
 	group_members.append(("cn=testuser1,{}".format(users_base_dn)).encode())
 	group_members.append(("cn=testuser2,{}".format(users_base_dn)).encode())
 	ldap.create_ad_group(groups_base_dn, "testgroup", group_members)
+	ldap.get_object(admin_dn)
 
 
 if __name__ == "__main__":
