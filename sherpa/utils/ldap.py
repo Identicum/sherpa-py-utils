@@ -36,6 +36,14 @@ class LDAP(object):
 		logger.error("Failed to connect to LDAP {}.".format(protocol, ip_address, port))
 
 
+	def get_objects(self, base_dn, filter="(objectclass=*)", attributes=["*"], scope=ldap.SCOPE_SUBTREE):
+		self._logger.debug("Getting objects. base_dn: {}, filter: {}, attributes: {}.", base_dn, filter, attributes)
+		result = self._conn.search_s(base_dn, scope, filter, attributes)
+		for item in result:
+			self._logger.debug("Found object: {}", item)
+		return result
+
+
 	def get_object(self, object_dn):
 		self._logger.debug("Getting object: {}.", object_dn)
 		query = "objectclass=*"

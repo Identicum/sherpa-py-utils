@@ -34,7 +34,9 @@ def run(logger, properties):
 	group_members.append(("cn=testuser1,{}".format(users_base_dn)).encode())
 	group_members.append(("cn=testuser2,{}".format(users_base_dn)).encode())
 	ldap.create_ad_group(groups_base_dn, "testgroup", group_members)
+
 	ldap.get_object(admin_dn)
+	ldap.get_objects(users_base_dn, filter="(objectclass=user)", attributes=["cn","sn","givenName"])
 
 
 if __name__ == "__main__":
