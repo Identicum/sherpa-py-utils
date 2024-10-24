@@ -26,14 +26,14 @@ def run(logger, properties):
 	users_base_dn = "ou=sherpa_users,{}".format(base_dn)
 	groups_base_dn = "ou=sherpa_groups,{}".format(base_dn)
 
-	ldap.create_ad_ou(base_dn, "sherpa_users")
-	ldap.create_ad_ou(base_dn, "sherpa_groups")
+	ldap.create_ad_ou(base_dn, "sherpa_users", True)
+	ldap.create_ad_ou(base_dn, "sherpa_groups", True)
 	group_members = []
 	for i in range(100):
-		ldap.create_ad_user(users_base_dn, f"testuser{i}", "testPassword.2024", f"testuser{i}@sherpa-demo.com", "Test", "User1")
+		ldap.create_ad_user(users_base_dn, f"testuser{i}", "testPassword.2024", f"testuser{i}@sherpa-demo.com", "Test", "User1", True)
 		group_members.append((f"cn=testuser{i},{users_base_dn}").encode())
   
-	ldap.create_ad_group(groups_base_dn, "testgroup", group_members)
+	ldap.create_ad_group(groups_base_dn, "testgroup", group_members, True)
 
 	ldap.get_object(admin_dn)
 	ldap.get_objects(users_base_dn, filter="(objectclass=user)", attributes=["cn","sn","givenName"], page_size=20)
