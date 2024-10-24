@@ -13,7 +13,7 @@ from importlib.metadata import version
 
 
 class LDAP(object):
-	def __init__(self, ip_address, user_dn, user_password, logger, protocol="ldaps", port="636", iterations=10, interval=5, timeout=3, verify=False):
+	def __init__(self, ip_address, user_dn, user_password, logger, protocol="ldaps", port="636", iterations=10, interval=5, network_timeout=3, timeout=3, verify=False):
 		logger.trace("Initializing LDAP. ip_address: {}, user_dn: {}, user_password: {}", ip_address, user_dn, user_password)
 		self.protocol = protocol
 		self._logger = logger
@@ -23,7 +23,8 @@ class LDAP(object):
 			try:
 				ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND) if verify and protocol == "ldaps" else ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
 				ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-				ldap.set_option(ldap.OPT_NETWORK_TIMEOUT, timeout)
+				ldap.set_option(ldap.OPT_NETWORK_TIMEOUT, network_timeout)
+				ldap.set_option(ldap.OPT_TIMEOUT, timeout)
 				logger.info("Trying to connect to {}, iteration: {}", ldap_url, iteration+1)
 				self._conn = ldap.initialize(ldap_url)
 				self._conn.protocol_version = ldap.VERSION3
