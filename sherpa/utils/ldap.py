@@ -13,7 +13,7 @@ from importlib.metadata import version
 
 
 class LDAP(object):
-	def __init__(self, ip_address, user_dn, user_password, logger, protocol="ldaps", port="636", iterations=10, interval=5):
+	def __init__(self, ip_address, user_dn, user_password, logger, protocol="ldaps", port="636", iterations=10, interval=5, timeout=3, verify=False):
 		logger.trace("Initializing LDAP. ip_address: {}, user_dn: {}, user_password: {}", ip_address, user_dn, user_password)
 		self.protocol = protocol
 		self._logger = logger
@@ -21,8 +21,9 @@ class LDAP(object):
 		ldap_url = "{}://{}:{}".format(protocol, ip_address, port)
 		for iteration in range(iterations):
 			try:
+				ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND) if verify and protocol == "ldaps" else ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
 				ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-				ldap.set_option(ldap.OPT_NETWORK_TIMEOUT, 3)
+				ldap.set_option(ldap.OPT_NETWORK_TIMEOUT, timeout)
 				logger.info("Trying to connect to {}, iteration: {}", ldap_url, iteration+1)
 				self._conn = ldap.initialize(ldap_url)
 				self._conn.protocol_version = ldap.VERSION3
@@ -40,7 +41,7 @@ class LDAP(object):
 		self._logger.debug("Getting objects. base_dn: {}, filter: {}, attributes: {}.", base_dn, filter, attributes)
 		result = self._conn.search_s(base_dn, scope, filter, attributes)
 		for item in result:
-			self._logger.debug("Found object: {}", item)
+			self._logger.trace("Found object: {}", item)
 		return result
 
 
