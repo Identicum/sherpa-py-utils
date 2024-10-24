@@ -7,6 +7,7 @@
 import ldap
 import ldap.dn
 import ldap.modlist as modlist
+import ldap.controls as ldapControls
 import time
 from sherpa.utils.basics import Logger
 from importlib.metadata import version
@@ -37,10 +38,34 @@ class LDAP(object):
 				time.sleep(interval)
 		logger.error("Failed to connect to LDAP {}.".format(protocol, ip_address, port))
 
-
-	def get_objects(self, base_dn, filter="(objectclass=*)", attributes=["*"], scope=ldap.SCOPE_SUBTREE):
+	# https://www.python-ldap.org/en/python-ldap-3.3.0/reference/ldap-controls.html#ldap.controls.libldap.SimplePagedResultsControl
+	def get_objects(self, base_dn, filter="(objectclass=*)", attributes=["*"], scope=ldap.SCOPE_SUBTREE, page_size=1000):
 		self._logger.debug("Getting objects. base_dn: {}, filter: {}, attributes: {}.", base_dn, filter, attributes)
-		result = self._conn.search_s(base_dn, scope, filter, attributes)
+		# Set pagination control
+		page_control = ldapControls.libldap.SimplePagedResultsControl(True, size=page_size, cookie='')
+		# We make the first request outside the while loop
+		response = self._conn.search_ext(base_dn, scope, filter, attributes, serverctrls=[page_control])
+		result = []
+		pages = 0
+		while True:
+			pages += 1
+			# Extract the result.
+			rtype, rdata, rmsgid, serverctrls = self._conn.result3(response)
+			# Append data
+			result.extend(rdata)
+			# Check if the controls in serverctrls supports pagination
+			controls = [control for control in serverctrls
+							if control.controlType == ldapControls.libldap.SimplePagedResultsControl.controlType]
+			if not controls:
+				self._logger.debug('The server ignores RFC 2696 control')
+				break
+			# If cookie not present, pagination has been reached
+			if not controls[0].cookie:
+				break
+			# Update the cookie for the next page request		
+			page_control.cookie = controls[0].cookie
+			# Request the next page
+			response = self._conn.search_ext(base_dn, scope, filter, attributes, serverctrls=[page_control])   
 		for item in result:
 			self._logger.trace("Found object: {}", item)
 		return result
