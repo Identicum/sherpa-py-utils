@@ -92,7 +92,7 @@ class LDAP(object):
 			raise
 
 
-	def create_ad_user(self, base_dn, username, password, upn, given_name, last_name, ignore_if_exists = True):
+	def create_ad_user(self, base_dn, username, password, upn, given_name, last_name, ignore_if_exists = False):
 		try:
 			object_dn = "cn={},{}".format(username, base_dn)
 			self._logger.debug("Creating user: {}.", object_dn)
@@ -119,7 +119,7 @@ class LDAP(object):
 		self._logger.debug("Password set.")
 
 
-	def create_ad_ou(self, base_dn, name, ignore_if_exists = True):
+	def create_ad_ou(self, base_dn, name, ignore_if_exists = False):
 		try:
 			object_dn = "ou={},{}".format(name, base_dn)
 			self._logger.debug("Creating OU: {}.", object_dn)
@@ -130,7 +130,7 @@ class LDAP(object):
 			if not ignore_if_exists:
 				raise
 
-	def create_ad_group(self, base_dn, name, members, ignore_if_exists = True):
+	def create_ad_group(self, base_dn, name, members, ignore_if_exists = False):
 		try:
 			object_dn = "cn={},{}".format(name, base_dn)
 			self._logger.debug("Creating Group: {}.", object_dn)
