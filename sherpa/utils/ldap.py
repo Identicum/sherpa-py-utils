@@ -81,25 +81,33 @@ class LDAP(object):
 
 
 	def create_object(self, object_dn, object_attrs):
-		self._logger.debug("Creating object: {}.", object_dn)
-		addLdif = modlist.addModlist(object_attrs)
-		self._logger.debug("Creating object: {} using ldif: {}", object_dn, addLdif)
-		self._conn.add_s(object_dn, addLdif)
-		self._logger.debug("Object added.")
+		try:
+			self._logger.debug("Creating object: {}.", object_dn)
+			addLdif = modlist.addModlist(object_attrs)
+			self._logger.debug("Creating object: {} using ldif: {}", object_dn, addLdif)
+			self._conn.add_s(object_dn, addLdif)
+			self._logger.debug("Object added.")
+		except ldap.ALREADY_EXISTS:
+			self._logger.debug("Object already exists")
+			raise
 
 
-	def create_ad_user(self, base_dn, username, password, upn, given_name, last_name):
-		object_dn = "cn={},{}".format(username, base_dn)
-		self._logger.debug("Creating user: {}.", object_dn)
-		attrs = {}
-		attrs['objectClass'] = ['user'.encode()]
-		attrs['userAccountControl'] = ["512".encode()]
-		attrs['sAMAccountName'] = [username.encode()]
-		attrs['userPrincipalName'] = [upn.encode()]
-		attrs['givenName'] = [given_name.encode()]
-		attrs['sn'] = [last_name.encode()]
-		self.create_object(object_dn, attrs)
-		self.set_ad_password(object_dn, password)
+	def create_ad_user(self, base_dn, username, password, upn, given_name, last_name, ignore_if_exists = True):
+		try:
+			object_dn = "cn={},{}".format(username, base_dn)
+			self._logger.debug("Creating user: {}.", object_dn)
+			attrs = {}
+			attrs['objectClass'] = ['user'.encode()]
+			attrs['userAccountControl'] = ["512".encode()]
+			attrs['sAMAccountName'] = [username.encode()]
+			attrs['userPrincipalName'] = [upn.encode()]
+			attrs['givenName'] = [given_name.encode()]
+			attrs['sn'] = [last_name.encode()]
+			self.create_object(object_dn, attrs)
+			self.set_ad_password(object_dn, password)
+		except ldap.ALREADY_EXISTS as e:
+			if not ignore_if_exists:
+				raise e
 
 
 	def set_ad_password(self, object_dn, password):
@@ -111,20 +119,27 @@ class LDAP(object):
 		self._logger.debug("Password set.")
 
 
-	def create_ad_ou(self, base_dn, name):
-		object_dn = "ou={},{}".format(name, base_dn)
-		self._logger.debug("Creating OU: {}.", object_dn)
-		attrs = {}
-		attrs['objectClass'] = ['organizationalUnit'.encode()]
-		self.create_object(object_dn, attrs)
+	def create_ad_ou(self, base_dn, name, ignore_if_exists = True):
+		try:
+			object_dn = "ou={},{}".format(name, base_dn)
+			self._logger.debug("Creating OU: {}.", object_dn)
+			attrs = {}
+			attrs['objectClass'] = ['organizationalUnit'.encode()]
+			self.create_object(object_dn, attrs)
+		except ldap.ALREADY_EXISTS:
+			if not ignore_if_exists:
+				raise
 
-
-	def create_ad_group(self, base_dn, name, members):
-		object_dn = "cn={},{}".format(name, base_dn)
-		self._logger.debug("Creating Group: {}.", object_dn)
-		attrs = {}
-		attrs['objectClass'] = ['group'.encode()]
-		attrs['sAMAccountName'] = [name.encode()]
-		if(len(members) > 0):
-			attrs['member'] = members
-		self.create_object(object_dn, attrs)
+	def create_ad_group(self, base_dn, name, members, ignore_if_exists = True):
+		try:
+			object_dn = "cn={},{}".format(name, base_dn)
+			self._logger.debug("Creating Group: {}.", object_dn)
+			attrs = {}
+			attrs['objectClass'] = ['group'.encode()]
+			attrs['sAMAccountName'] = [name.encode()]
+			if(len(members) > 0):
+				attrs['member'] = members
+			self.create_object(object_dn, attrs)
+		except ldap.ALREADY_EXISTS:
+			if not ignore_if_exists:
+				raise
