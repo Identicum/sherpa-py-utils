@@ -41,31 +41,29 @@ class LDAP(object):
 	# https://www.python-ldap.org/en/python-ldap-3.3.0/reference/ldap-controls.html#ldap.controls.libldap.SimplePagedResultsControl
 	def get_objects(self, base_dn, filter="(objectclass=*)", attributes=["*"], scope=ldap.SCOPE_SUBTREE, page_size=1000):
 		self._logger.debug("Getting objects. base_dn: {}, filter: {}, attributes: {}.", base_dn, filter, attributes)
-		# Set pagination control
-		page_control = ldapControls.libldap.SimplePagedResultsControl(True, size=page_size, cookie='')
-		# We make the first request outside the while loop
-		response = self._conn.search_ext(base_dn, scope, filter, attributes, serverctrls=[page_control])
+		self._logger.trace("Setting up paginated results control.")
+		paged_results_control = ldapControls.libldap.SimplePagedResultsControl(True, size=page_size, cookie='')
+		self._logger.trace("Making first query.")
+		response = self._conn.search_ext(base_dn, scope, filter, attributes, serverctrls=[paged_results_control])
 		result = []
 		pages = 0
 		while True:
 			pages += 1
-			# Extract the result.
-			rtype, rdata, rmsgid, serverctrls = self._conn.result3(response)
-			# Append data
-			result.extend(rdata)
-			# Check if the controls in serverctrls supports pagination
-			controls = [control for control in serverctrls
+			result_type, result_data, result_message_id, server_controls = self._conn.result3(response)
+			self._logger.trace("Appending first batch of results.")
+			result.extend(result_data)
+			controls = [control for control in server_controls
 							if control.controlType == ldapControls.libldap.SimplePagedResultsControl.controlType]
 			if not controls:
-				self._logger.debug('The server ignores RFC 2696 control')
+				self._logger.debug('LDAP server does not support pagination (RFC 2696)')
 				break
-			# If cookie not present, pagination has been reached
 			if not controls[0].cookie:
+				self._logger.trace("No cookie present in response controls, so no more results.")
 				break
-			# Update the cookie for the next page request		
-			page_control.cookie = controls[0].cookie
-			# Request the next page
-			response = self._conn.search_ext(base_dn, scope, filter, attributes, serverctrls=[page_control])   
+			self._logger.trace("Updating the cookie for the next page request.")
+			paged_results_control.cookie = controls[0].cookie
+			self._logger.debug("Requesting results page #: {}.", pages)
+			response = self._conn.search_ext(base_dn, scope, filter, attributes, serverctrls=[paged_results_control])   
 		for item in result:
 			self._logger.trace("Found object: {}", item)
 		return result

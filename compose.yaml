@@ -1,6 +1,6 @@
 secrets:
   samba-admin-password:
-    file: ./samba_admin.password
+    file: ./test/samba_admin.password
 
 services:
   sherpa:
@@ -9,9 +9,10 @@ services:
     pull_policy: always
     restart: always
     volumes:
-      - ../:/usr/home/
+      - ./:/usr/home/
   samba:
     container_name: samba
+    hostname: sambadc1
     image: ghcr.io/identicum/samba-dc:latest
     pull_policy: always
     restart: always
@@ -28,7 +29,7 @@ services:
       - 389:389
       - 636:636
     volumes:
-      - ./samba.conf:/etc/samba/conf.d/0global.conf
+      - ./test/samba.conf:/etc/samba/conf.d/0global.conf
     networks:
       default:
         aliases:
