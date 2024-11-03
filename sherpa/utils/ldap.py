@@ -90,7 +90,7 @@ class LDAP(object):
 			raise
 
 
-	def create_ad_user(self, base_dn, username, password, upn, given_name, last_name, ignore_if_exists = False):
+	def create_ad_user(self, base_dn, username, password, upn, given_name, last_name, employee_id="", ignore_if_exists=False):
 		try:
 			object_dn = "cn={},{}".format(username, base_dn)
 			self._logger.debug("Creating user: {}.", object_dn)
@@ -101,6 +101,8 @@ class LDAP(object):
 			attrs['userPrincipalName'] = [upn.encode()]
 			attrs['givenName'] = [given_name.encode()]
 			attrs['sn'] = [last_name.encode()]
+			if employee_id:
+				attrs['employeeID'] = [employee_id.encode()]
 			self.create_object(object_dn, attrs)
 			self.set_ad_password(object_dn, password)
 		except ldap.ALREADY_EXISTS as e:
