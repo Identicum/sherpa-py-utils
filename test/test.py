@@ -44,13 +44,14 @@ def run(logger, properties):
 	ldap.create_ad_ou(base_dn, "sherpa_users", ignore_if_exists=True)
 	ldap.create_ad_ou(base_dn, "sherpa_groups", ignore_if_exists=True)
 	group_members = []
-	ldap.create_ad_user(users_base_dn, f"testuser000", "testPassword.2024", f"testuser000@sherpa-demo.com", "Test000", "User000", employee_id="000", ignore_if_exists=True)
-	for i in range(10):
+	ldap.create_ad_user(users_base_dn, f"testuser000", "testPassword.2024", f"testuser000@sherpa-demo.com", "Test000", "User000", employee_id="000", title="title000", employee_type="contractor", ignore_if_exists=True)
+	ldap.create_ad_user(users_base_dn, f"testuser001", "testPassword.2024", f"testuser001@sherpa-demo.com", "Test001", "User001", employee_id="001", department="department001", ignore_if_exists=True)
+	for i in range(2):
 		ldap.create_ad_user(users_base_dn, f"testuser{i}", "testPassword.2024", f"testuser{i}@sherpa-demo.com", "Test", "User1", ignore_if_exists=True)
 		group_members.append((f"cn=testuser{i},{users_base_dn}").encode())
 	ldap.create_ad_group(groups_base_dn, "testgroup", group_members, ignore_if_exists=True)
 	ldap.get_object(admin_dn)
-	for user in ldap.get_objects(users_base_dn, filter="(objectclass=user)", attributes=["cn","sn","givenName","employeeID"], page_size=20):
+	for user in ldap.get_objects(users_base_dn, filter="(objectclass=user)", attributes=["cn","sn","givenName","employeeID","title", "employeeType", "department"], page_size=20):
 		logger.debug("user_found: {}.", user)
 
 
