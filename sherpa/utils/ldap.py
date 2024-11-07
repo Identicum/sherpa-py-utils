@@ -69,6 +69,24 @@ class LDAP(object):
 		return result
 
 
+	def get_attributes_csv(self, object, attr_list, delimiter='"', separator=',', multivalue_separator=';'):
+		object_dn = object[0]
+		object_attributes = object[1]
+		self._logger.trace("DN: {}, attributes: {}", object_dn, object_attributes)
+		attr_values_delimited_list = []
+		for attr in attr_list:
+			attr_values_delimited = delimiter + delimiter
+			if attr in object_attributes:
+				attr_values = object_attributes[attr]
+				attr_values_list = []
+				for attr_value in attr_values:
+					attr_values_list.append(attr_value.decode())
+				attr_values_delimited = multivalue_separator.join(attr_values_list)
+			self._logger.trace("attr: {}, values: {}", attr, attr_values_delimited)
+			attr_values_delimited_list.append(attr_values_delimited)
+		return separator.join(attr_values_delimited_list)
+
+
 	def get_object(self, object_dn):
 		self._logger.debug("Getting object: {}.", object_dn)
 		query = "objectclass=*"
