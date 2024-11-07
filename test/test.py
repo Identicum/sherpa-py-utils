@@ -17,10 +17,7 @@ def main():
 	logger.info("{} finished.".format(os.path.basename(__file__)))
 
 
-def run(logger, properties):
-	logger.info("{} starting.".format(os.path.basename(__file__)))
-
-	# Test variables replacement
+def test_variables_replacement(logger, properties):
 	origin_file_path = "replace.xml"
 	with open(origin_file_path, "r") as file_object:
 		origin_data = file_object.read()
@@ -32,15 +29,8 @@ def run(logger, properties):
 		replaced_data = file_object.read()
 	logger.debug("replaced_data: {}.", replaced_data)
 
-	# Test LDAP
-	ip_address = "samba"
-	base_dn = "dc=sherpa-demo,dc=com"
-	admin_dn = "cn=administrator,cn=users,{}".format(base_dn)
-	admin_password = "Sherpa.2024"
-	ldap = LDAP(ip_address=ip_address, user_dn=admin_dn, user_password=admin_password, logger=logger)
-	users_base_dn = "ou=sherpa_users,{}".format(base_dn)
-	groups_base_dn = "ou=sherpa_groups,{}".format(base_dn)
 
+def create_ldap_objects(logger, properties, ldap, base_dn, users_base_dn, groups_base_dn):
 	ldap.create_ad_ou(base_dn, "sherpa_users", ignore_if_exists=True)
 	ldap.create_ad_ou(base_dn, "sherpa_groups", ignore_if_exists=True)
 	group_members = []
@@ -49,10 +39,28 @@ def run(logger, properties):
 	for i in range(2):
 		ldap.create_ad_user(users_base_dn, f"testuser{i}", "testPassword.2024", f"testuser{i}@sherpa-demo.com", "Test", "User1", ignore_if_exists=True)
 		group_members.append((f"cn=testuser{i},{users_base_dn}").encode())
-	ldap.create_ad_group(groups_base_dn, "testgroup", group_members, ignore_if_exists=True)
-	ldap.get_object(admin_dn)
-	for user in ldap.get_objects(users_base_dn, filter="(objectclass=user)", attributes=["cn","sn","givenName","employeeID","title", "employeeType", "department"], page_size=20):
-		logger.debug("user_found: {}.", user)
+	ldap.create_ad_group(groups_base_dn, "testgroup1", group_members, ignore_if_exists=True)
+	ldap.create_ad_group(groups_base_dn, "testgroup2", group_members, ignore_if_exists=True)
+
+
+def run(logger, properties):
+	logger.info("{} starting.".format(os.path.basename(__file__)))
+
+	# test_variables_replacement(logger, properties)
+
+	ip_address = "samba"
+	base_dn = "dc=sherpa-demo,dc=com"
+	admin_dn = "cn=administrator,cn=users,{}".format(base_dn)
+	admin_password = "Sherpa.2024"
+	ldap = LDAP(ip_address=ip_address, user_dn=admin_dn, user_password=admin_password, logger=logger)
+	users_base_dn = "ou=sherpa_users,{}".format(base_dn)
+	groups_base_dn = "ou=sherpa_groups,{}".format(base_dn)
+
+	create_ldap_objects(logger, properties, ldap, base_dn, users_base_dn, groups_base_dn)
+
+	for object in ldap.get_objects(users_base_dn, filter="(objectclass=user)", page_size=20):
+		cvs_row = ldap.get_attributes_csv(object, attr_list=["cn","sn","givenName","employeeID","title", "employeeType", "memberOf", "department"], multivalue_separator="##")
+		logger.info("CSV row: {}", cvs_row)
 
 
 if __name__ == "__main__":
