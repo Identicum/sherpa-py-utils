@@ -46,8 +46,6 @@ def create_ldap_objects(logger, properties, ldap, base_dn, users_base_dn, groups
 def run(logger, properties):
 	logger.info("{} starting.".format(os.path.basename(__file__)))
 
-	# test_variables_replacement(logger, properties)
-
 	ip_address = "samba"
 	base_dn = "dc=sherpa-demo,dc=com"
 	admin_dn = "cn=administrator,cn=users,{}".format(base_dn)
