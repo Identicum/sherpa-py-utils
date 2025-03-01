@@ -18,16 +18,9 @@ from sherpa.utils.basics import Logger
 class JWKPorter:
 	def __init__(self, logger, jwkporter_base_url, idp_url):
 		self.logger = logger
-		self._oidc_client = None
+		self.oidc_client = OIDCClient(idp_url, logger, True)
 		self.jwkporter_base_url = jwkporter_base_url
 		self.idp_url = idp_url
-
-	@property
-	def oidc_client(self):
-		if self._oidc_client is None:
-			self.logger.debug("Creating an OIDC Client for connections to IdP: {}".format(self.idp_url))
-			self._oidc_client = OIDCClient(self.idp_url,self.logger, True)
-		return self._oidc_client
 
 	def _obtain_access_token(self, client_id, client_secret):
 		client_id = client_id
@@ -92,7 +85,7 @@ class JWKPorter:
 			raise Exception("Failed to create a JWK: {} {}".format(response.status_code, response.text))
 
 	def verify(self):
-		logger.debug("Verify: {}", payload)
+		self.logger.debug("Verify")
 
 
 
