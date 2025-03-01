@@ -91,8 +91,8 @@ class JWKPorter:
 			self.logger.debug(response)
 			raise Exception("Failed to create a JWK: {} {}".format(response.status_code, response.text))
 
-	def verify(self, logger, properties, payload):
-		logger.debug("Payload: {}", payload)
+	def verify(self):
+		logger.debug("Verify: {}", payload)
 
 
 
