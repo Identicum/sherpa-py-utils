@@ -78,14 +78,31 @@ class JWKPorter:
 		}
 		response = requests.post(url=endpoint_url, headers=headers)
 		if response.status_code == 200:
-			self.logger.debug("jwk: {}", response.content)
+			self.logger.debug("Created JWK: {}", response.content)
 			return response.content
 		else:
 			self.logger.debug(response)
 			raise Exception("Failed to create a JWK: {} {}".format(response.status_code, response.text))
 
-	def verify(self):
-		self.logger.debug("Verify")
+	def verify(self, client_id, client_secret, kid, signed_jwt):
+		self.logger.debug("Verifying signed JWT {} with kid {}".format(signed_jwt, kid))
+		access_token = self._obtain_access_token(client_id, client_secret)
+		endpoint_url = self.jwkporter_base_url + '/token/verify'
+		headers = {
+			"Authorization": "Bearer {}".format(access_token),
+			"Content-Type": "application/json"
+		}
+		payload = json.dumps({
+			"kid": kid,
+			"signedJwt": signed_jwt
+		})
+		response = requests.post(url=endpoint_url, headers=headers, data=payload)
+		if response.status_code == 200:
+			self.logger.debug("JWT Signed verified: {}", response.content)
+			return response.content
+		else:
+			self.logger.debug(response)
+			raise Exception("Failed to verify signed jwt: {} {}".format(response.status_code, response.text))
 
 
 
@@ -108,7 +125,7 @@ def run(logger, properties, args):
 	features = args.features
 	customer = args.customer
 	product = args.product
-	logger.debug("Obtaining client_id, client_secret, jwkporter base url and idp base url")
+	logger.debug("Obtaining client_id, client_secret, jwkporter base url and idp base url from properties")
 	client_id = properties.get("jwkporter_client_id")
 	client_secret = properties.get("jwkporter_client_secret")
 	jwkporter_base_url = properties.get("jwkporter_base_url")
@@ -117,11 +134,17 @@ def run(logger, properties, args):
 	logger.debug("Creating JWKPorter instance")
 	jwkporter = JWKPorter(logger, jwkporter_base_url, idp_url)
 
-	jwk = jwkporter.create(client_id, client_secret)
-	data = json.loads(jwk.decode('utf-8'))
+	response = jwkporter.create(client_id, client_secret)
+	logger.debug("Decoding content from response and saving kid")
+	data = json.loads(response.decode('utf-8'))
 	kid = data.get("kid")
 
-	jwkporter.sign(client_id, client_secret, exp, features,customer, product, kid)
+	response = jwkporter.sign(client_id, client_secret, exp, features,customer, product, kid)
+
+	data = json.loads(response.decode('utf-8'))
+	signed_jwt = data.get("signedJwt")
+	jwkporter.verify(client_id,client_secret, kid, signed_jwt)
+
 
 	logger.debug("run finished successfully")
 
