@@ -1,110 +1,15 @@
 #!/usr/bin/env python3
 
 import argparse
-from datetime import datetime
 import json
 import os
 import sys
-import base64
-import requests
-import time
 
 sys.path.insert(1, "../")
 
-from sherpa.utils.clients import OIDCClient
 from sherpa.utils.basics import Properties
 from sherpa.utils.basics import Logger
-
-class JWKPorter:
-	def __init__(self, logger, jwkporter_base_url, idp_url):
-		self.logger = logger
-		self.oidc_client = OIDCClient(idp_url, logger, True)
-		self.jwkporter_base_url = jwkporter_base_url
-		self.idp_url = idp_url
-
-	def _obtain_access_token(self, client_id, client_secret, scope):
-		client_id = client_id
-		client_secret = client_secret
-		credentials = f"{client_id}:{client_secret}".encode()
-		b64_credentials = base64.b64encode(credentials).decode()
-		credentials = self.oidc_client.do_client_credentials(b64_credentials, scope)
-		access_token = self.oidc_client.extract_access_token(credentials)
-		return access_token
-
-	def sign(self, client_id, client_secret, scope, exp, features, customer, product, kid):
-		self.logger.debug("Running method to sign JWT against JWK with public key {}".format("8388bb6b-4d8e-4be3-a5d4-080523a75e9b"))
-		access_token = self._obtain_access_token(client_id, client_secret, scope)
-		endpoint_url = self.jwkporter_base_url + '/token/sign'
-		iat = int(time.time())
-
-		try:
-			exp = int(datetime.strptime(exp, "%Y%m%d").timestamp())
-		except ValueError:
-			raise ValueError("Invalid expiration format. Please use YYYYMMDD.")
-
-		features = [feature.strip() for feature in features.split(",")]
-		if not features:
-			raise ValueError("Features list cannot be empty.")
-		payload = json.dumps({
-			"kid": kid,
-			"payload": {
-				"iat": iat,
-				"exp": exp,
-				"customer": customer,
-				"product": product,
-				"features": features
-			}
-		})
-		headers = {
-			"Authorization": "Bearer {}".format(access_token),
-			"Content-Type": "application/json"
-		}
-		self.logger.debug("Calling url: {} with headers: {} and payload: {}", endpoint_url, headers, payload)
-		response = requests.post(url=endpoint_url, headers=headers, data=payload)
-		if response.status_code == 200:
-			self.logger.debug("signed_payload: {}", response.content)
-			return response.content
-		else:
-			self.logger.debug(response)
-			raise Exception("Failed to sign payload: {} {}".format(response.status_code, response.text))
-
-	def create(self, client_id, client_secret, scope):
-		self.logger.debug("Creating a JWK Key in JWKPortainer instance")
-		access_token = self._obtain_access_token(client_id, client_secret, scope)
-		endpoint_url = self.jwkporter_base_url + '/jwks/manage'
-		headers = {
-			"Authorization": "Bearer {}".format(access_token),
-			"Content-Type": "application/json"
-		}
-		response = requests.post(url=endpoint_url, headers=headers)
-		if response.status_code == 200:
-			self.logger.debug("Created JWK: {}", response.content)
-			return response.content
-		else:
-			self.logger.debug(response)
-			raise Exception("Failed to create a JWK: {} {}".format(response.status_code, response.text))
-
-	def verify(self, client_id, client_secret, scope, kid, signed_jwt):
-		self.logger.debug("Verifying signed JWT {} with kid {}".format(signed_jwt, kid))
-		access_token = self._obtain_access_token(client_id, client_secret, scope)
-		endpoint_url = self.jwkporter_base_url + '/token/verify'
-		headers = {
-			"Authorization": "Bearer {}".format(access_token),
-			"Content-Type": "application/json"
-		}
-		payload = json.dumps({
-			"kid": kid,
-			"signedJwt": signed_jwt
-		})
-		response = requests.post(url=endpoint_url, headers=headers, data=payload)
-		if response.status_code == 200:
-			self.logger.debug("JWT Signed verified: {}", response.content)
-			return response.content
-		else:
-			self.logger.debug(response)
-			raise Exception("Failed to verify signed jwt: {} {}".format(response.status_code, response.text))
-
-
+from sherpa.utils.jwkporter import JWKPorter
 
 def main(arguments):
 	properties = Properties("default.properties", "local.properties")
@@ -130,21 +35,20 @@ def run(logger, properties, args):
 	client_secret = properties.get("jwkporter_client_secret")
 	jwkporter_base_url = properties.get("jwkporter_base_url")
 	idp_url = properties.get("idp_url")
-	scopes="openid jwksporter:sign jwksporter:crud"
 
 	logger.debug("Creating JWKPorter instance")
 	jwkporter = JWKPorter(logger, jwkporter_base_url, idp_url)
 
-	response = jwkporter.create(client_id, client_secret, scopes)
+	response = jwkporter.create(client_id, client_secret)
 	logger.debug("Decoding content from response and saving kid")
 	data = json.loads(response.decode('utf-8'))
 	kid = data.get("kid")
 
-	response = jwkporter.sign(client_id, client_secret, scopes, exp, features,customer, product, kid)
+	response = jwkporter.sign(client_id, client_secret, exp, features,customer, product, kid)
 
 	data = json.loads(response.decode('utf-8'))
 	signed_jwt = data.get("signedJwt")
-	jwkporter.verify(client_id, client_secret, scopes, kid, signed_jwt)
+	jwkporter.verify(client_id, client_secret, kid, signed_jwt)
 
 
 	logger.debug("run finished successfully")
