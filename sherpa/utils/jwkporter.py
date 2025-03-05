@@ -28,8 +28,12 @@ class JWKPorter:
 		client_secret = client_secret
 		credentials = f"{client_id}:{client_secret}".encode()
 		b64_credentials = base64.b64encode(credentials).decode()
-		token_response = self.oidc_client.do_client_credentials(b64_credentials, scope)
-		access_token = self.oidc_client.extract_access_token(token_response)
+		try:
+			token_response = self.oidc_client.do_client_credentials(b64_credentials, scope)
+			access_token = self.oidc_client.extract_access_token(token_response)
+		except Exception as err:
+			self.logger.error("An error has occurred trying to obtain the access token from response: {}", err)
+			raise err
 		return access_token
 
 	def sign(self, client_id, client_secret, exp, features, customer, product, kid):
