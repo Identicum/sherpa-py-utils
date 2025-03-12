@@ -1,7 +1,9 @@
 # sherpa-py-utils is available under the MIT License. https://github.com/Identicum/sherpa-py-utils/
-# Copyright (c) 2024, Identicum - https://identicum.com/
+# Copyright (c) 2025, Identicum - https://identicum.com/
 #
-# Author: Ezequiel O Sandoval - esandoval@identicum.com
+# Authors:
+#  Ezequiel O Sandoval - esandoval@identicum.com
+#  Gustavo J Gallardo - ggallard@identicum.com
 #
 
 import requests
@@ -29,6 +31,7 @@ class OIDCClient:
         self.logger.debug("OIDCClient version: " + version("sherpa-py-utils"))
         self.well_known = self.get_well_known()
 
+
     def get_well_known(self):
         """
         Executes a basic request to .well-known endpoint from a standard IDP
@@ -42,6 +45,7 @@ class OIDCClient:
         self.logger.trace("obtained well-known info: {}", well_known_json)
         return well_known_json
 
+
     def validate_idp(self):
         """
         Checks connectivity with the idp well-known endpoint and verifies the issuer.
@@ -49,6 +53,7 @@ class OIDCClient:
         """
         self.logger.trace("Validating IDP with idp_url {}", self.idp_url)
         return self.get_well_known()['issuer'] == self.idp_url
+
 
     def request_to_token_endpoint(self, b64_client_credentials, params_in_dict):
         """
@@ -69,6 +74,7 @@ class OIDCClient:
         self.logger.debug("JSON Response obj is: {}", response_json)
         return response_json
 
+
     def _get_basic_header(self, credentials):
         """
         returns a basic header for post operations, adding client_credentials
@@ -82,6 +88,7 @@ class OIDCClient:
             'Connection': "keep-alive",
             'cache-control': "no-cache"
         }
+
 
     def validate_jwt(self, claims, token, error_claim=None):
         """
@@ -104,6 +111,7 @@ class OIDCClient:
                 return False
         return False if error_claim is not None and error_claim in decoded_token else True
 
+
     def do_ropc(self, client_credentials, username, password, scope="openid"):
         """
         returns JSON from response
@@ -124,6 +132,33 @@ class OIDCClient:
         self.logger.debug("HTTP Response: {}", str(json_response))
         return json_response
 
+
+    def do_client_credentials(self, client_credentials, scope="openid"):
+        """
+        returns JSON from response
+        :param scope(s)
+        :return: a dict that represents the JSON response
+        """
+        headers = self._get_basic_header(client_credentials)
+        payload = {
+            'grant_type': 'client_credentials',
+            'scope': scope
+        }
+        http_response = requests.post(self.well_known['token_endpoint'], data=payload, headers=headers, verify=self.verify)
+        json_response = http_response.json()
+        self.logger.debug("HTTP Response: {}", str(json_response))
+        return json_response
+
+
+    def extract_access_token(self, json_response):
+        """
+        Extracts access_token from a json response
+        :param json_response: dict that represents a json response
+        :return: a string that represents the access_token
+        """
+        return json_response['access_token']
+
+
 class UMAClient:
     """
     Provides basic UMA interaction on a protected UMA API - clients authenticate with basic_credentials
@@ -143,6 +178,7 @@ class UMAClient:
         self.verify = verify
         self.is_gluu_45 = is_gluu_45
         self.logger.debug("is_gluu_45 deployment: {}", is_gluu_45)
+
 
     def get_rpt(self, path, operation="GET"):
         """
@@ -203,6 +239,7 @@ class UMAClient:
             }
         return OIDCClient(idp_url, self.logger, self.verify).request_to_token_endpoint(self.b64_client_credentials, payload)['access_token']
 
+
     def get(self, sub_path):
         """
         GET operation
@@ -210,6 +247,7 @@ class UMAClient:
         :return: dict, represent json_obj returned by API
         """
         return self.execute("GET", sub_path)
+
 
     def post(self, sub_path, json_obj):
         """
@@ -220,6 +258,7 @@ class UMAClient:
         """
         return self.execute("POST", sub_path, json_obj)
 
+
     def put(self, sub_path, json_obj):
         """
         PUT operation
@@ -229,6 +268,7 @@ class UMAClient:
         """
         return self.execute("PUT", sub_path, json_obj)
 
+
     def delete(self, sub_path):
         """
         DELETE operation
@@ -236,6 +276,7 @@ class UMAClient:
         :return: dict, represent json_obj returned by API
         """
         return self.execute("DELETE", sub_path)
+
 
     def execute(self, operation, sub_path, json_obj=None, rpt=None):
         """
@@ -267,6 +308,7 @@ class UMAClient:
         except:
             return {}
 
+
     def _get_operation_headers(self, ticket):
         """
         Generates a dict that represents a HTTP headed for a requests call with an RPT for UMA requests.
@@ -279,4 +321,3 @@ class UMAClient:
             'Connection': "keep-alive",
             'cache-control': "no-cache"
         }
-

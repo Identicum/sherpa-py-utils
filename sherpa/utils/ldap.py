@@ -1,5 +1,5 @@
 # sherpa-py-utils is available under the MIT License. https://github.com/Identicum/sherpa-py-utils/
-# Copyright (c) 2024, Identicum - https://identicum.com/
+# Copyright (c) 2025, Identicum - https://identicum.com/
 #
 # Author: Gustavo J Gallardo - ggallard@identicum.com
 #
@@ -37,6 +37,7 @@ class LDAP(object):
 				logger.info("Waiting {} seconds.".format(interval))
 				time.sleep(interval)
 		logger.error("Failed to connect to LDAP {}.".format(protocol, ip_address, port))
+
 
 	# https://www.python-ldap.org/en/python-ldap-3.3.0/reference/ldap-controls.html#ldap.controls.libldap.SimplePagedResultsControl
 	def get_objects(self, base_dn, filter="(objectclass=*)", attributes=["*"], scope=ldap.SCOPE_SUBTREE, page_size=1000):
@@ -107,6 +108,7 @@ class LDAP(object):
 			self._logger.debug("Object already exists")
 			raise
 
+
 	def create_ad_user(self, base_dn, username, password, upn, given_name, last_name, employee_id="", title="", department="", employee_type="", ignore_if_exists=False):
 		try:
 			object_dn = "cn={},{}".format(username, base_dn)
@@ -152,6 +154,7 @@ class LDAP(object):
 		except ldap.ALREADY_EXISTS:
 			if not ignore_if_exists:
 				raise
+
 
 	def create_ad_group(self, base_dn, name, members, ignore_if_exists = False):
 		try:

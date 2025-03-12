@@ -34,10 +34,10 @@ def create_ldap_objects(logger, properties, ldap, base_dn, users_base_dn, groups
 	ldap.create_ad_ou(base_dn, "sherpa_users", ignore_if_exists=True)
 	ldap.create_ad_ou(base_dn, "sherpa_groups", ignore_if_exists=True)
 	group_members = []
-	ldap.create_ad_user(users_base_dn, f"testuser000", "testPassword.2024", f"testuser000@sherpa-demo.com", "Test000", "User000", employee_id="000", title="title000", employee_type="contractor", ignore_if_exists=True)
-	ldap.create_ad_user(users_base_dn, f"testuser001", "testPassword.2024", f"testuser001@sherpa-demo.com", "Test001", "User001", employee_id="001", department="department001", ignore_if_exists=True)
+	ldap.create_ad_user(users_base_dn, f"testuser000", "testPassword.2025", f"testuser000@sherpa-demo.com", "Test000", "User000", employee_id="000", title="title000", employee_type="contractor", ignore_if_exists=True)
+	ldap.create_ad_user(users_base_dn, f"testuser001", "testPassword.2025", f"testuser001@sherpa-demo.com", "Test001", "User001", employee_id="001", department="department001", ignore_if_exists=True)
 	for i in range(2):
-		ldap.create_ad_user(users_base_dn, f"testuser{i}", "testPassword.2024", f"testuser{i}@sherpa-demo.com", "Test", "User1", ignore_if_exists=True)
+		ldap.create_ad_user(users_base_dn, f"testuser{i}", "testPassword.2025", f"testuser{i}@sherpa-demo.com", "Test", "User1", ignore_if_exists=True)
 		group_members.append((f"cn=testuser{i},{users_base_dn}").encode())
 	ldap.create_ad_group(groups_base_dn, "testgroup1", group_members, ignore_if_exists=True)
 	ldap.create_ad_group(groups_base_dn, "testgroup2", group_members, ignore_if_exists=True)
@@ -46,12 +46,10 @@ def create_ldap_objects(logger, properties, ldap, base_dn, users_base_dn, groups
 def run(logger, properties):
 	logger.info("{} starting.".format(os.path.basename(__file__)))
 
-	# test_variables_replacement(logger, properties)
-
 	ip_address = "samba"
 	base_dn = "dc=sherpa-demo,dc=com"
 	admin_dn = "cn=administrator,cn=users,{}".format(base_dn)
-	admin_password = "Sherpa.2024"
+	admin_password = "Sherpa.2025"
 	ldap = LDAP(ip_address=ip_address, user_dn=admin_dn, user_password=admin_password, logger=logger)
 	users_base_dn = "ou=sherpa_users,{}".format(base_dn)
 	groups_base_dn = "ou=sherpa_groups,{}".format(base_dn)
