@@ -10,7 +10,7 @@ sys.path.insert(1, "../")
 from sherpa.utils.basics import Properties
 from sherpa.utils.basics import Logger
 from sherpa.utils.jwkporter import JWKPorter
-from sherpa.utils.licence import build_license_json
+from sherpa.utils.license import build_license_json
 
 def main(arguments):
 	properties = Properties("default.properties", "local.properties")

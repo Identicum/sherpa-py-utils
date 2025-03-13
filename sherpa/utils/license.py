@@ -14,8 +14,8 @@ def build_license_json(product, customer, expiration, features):
     Builds and returns a JSON containing License info and IAT timestamp.
     Args:
         product: Product Name.
-        customer: Name of the customer the licence's for.
-        expiration: Licence Expiration Date (YYYYMMDD).
+        customer: Name of the customer the license's for.
+        expiration: License Expiration Date (YYYYMMDD).
         features: Single String listing features separated by commas.
     """
     iat = int(time.time())
