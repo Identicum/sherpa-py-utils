@@ -6,27 +6,47 @@
 #
 
 import base64
-from datetime import datetime
 
 import requests
 import json
-import time
 
 from sherpa.utils.clients import OIDCClient
 
 JWKS_SIGN_SCOPE = "jwksporter:sign"
 JWKS_CRUD_SCOPE = "jwksporter:crud"
 class JWKPorter:
-	def __init__(self, logger, jwkporter_base_url, idp_url):
+	"""
+	JWKPorter Class is a wrapper for the JWKPorter REST API, used for the following purpouses
+	- Signing JSONs with a public key
+	- Key Creation
+	- JWT Verification
+	- Public Key Retrieval
+
+	Attributes:
+		logger: Logger class instance
+		oidc_client
+		jwkporter_base_url: Base URL of the JWKPorter REST API
+		idp_url
+		client_id
+		client_secret
+	"""
+
+	def __init__(self, logger, jwkporter_base_url, idp_url, client_id, client_secret):
 		self.logger = logger
 		self.oidc_client = OIDCClient(idp_url, logger, True)
 		self.jwkporter_base_url = jwkporter_base_url
 		self.idp_url = idp_url
+		self.client_id = client_id
+		self.client_secret = client_secret
 
-	def _obtain_access_token(self, client_id, client_secret, scope = None):
-		client_id = client_id
-		client_secret = client_secret
-		credentials = f"{client_id}:{client_secret}".encode()
+	def _obtain_access_token(self, scope = None):
+		"""
+		Retrieves and returns Access Token from the OIDC Client
+
+		Args:
+			scope (Defaults to 'oidc')
+		"""
+		credentials = f"{self.client_id}:{self.client_secret}".encode()
 		b64_credentials = base64.b64encode(credentials).decode()
 		try:
 			token_response = self.oidc_client.do_client_credentials(b64_credentials, scope)
@@ -36,36 +56,30 @@ class JWKPorter:
 			raise err
 		return access_token
 
-	def sign(self, client_id, client_secret, exp, features, customer, product, kid):
+	def sign_json(self, json_payload, kid):
+		"""
+		Receives a JSON Payload, signs and then returns it
+
+		Args:
+			json_payload
+			kid: Key ID to sign with
+		"""
 		self.logger.debug("Running method to sign JWT against JWK with public key {}".format(kid))
-		access_token = self._obtain_access_token(client_id, client_secret, JWKS_SIGN_SCOPE)
+		access_token = self._obtain_access_token(JWKS_SIGN_SCOPE)
 		endpoint_url = self.jwkporter_base_url + '/token/sign'
-		iat = int(time.time())
-
-		try:
-			exp = int(datetime.strptime(exp, "%Y%m%d").timestamp())
-		except ValueError:
-			raise ValueError("Invalid expiration format. Please use YYYYMMDD.")
-
-		features = [feature.strip() for feature in features.split(",")]
-		if not features:
-			raise ValueError("Features list cannot be empty.")
-		payload = json.dumps({
-			"kid": kid,
-			"payload": {
-				"iat": iat,
-				"exp": exp,
-				"customer": customer,
-				"product": product,
-				"features": features
-			}
-		})
+		
 		headers = {
 			"Authorization": "Bearer {}".format(access_token),
 			"Content-Type": "application/json"
 		}
-		self.logger.debug("Calling url: {} with headers: {} and payload: {}", endpoint_url, headers, payload)
-		response = requests.post(url=endpoint_url, headers=headers, data=payload)
+
+		request_payload = json.dumps({
+			"kid": kid,
+			"payload": json_payload
+		})
+
+		self.logger.debug("Calling url: {} with headers: {} and request_payload: {}", endpoint_url, headers, request_payload)
+		response = requests.post(url=endpoint_url, headers=headers, data=request_payload)
 		if response.status_code == 200:
 			self.logger.debug("signed_payload: {}", response.content)
 			return response.content
@@ -73,9 +87,12 @@ class JWKPorter:
 			self.logger.debug(response)
 			raise Exception("Failed to sign payload: {} {}".format(response.status_code, response.text))
 
-	def create(self, client_id, client_secret):
-		self.logger.debug("Creating a JWK Key in JWKPortainer instance")
-		access_token = self._obtain_access_token(client_id, client_secret, JWKS_CRUD_SCOPE)
+	def create_key(self):
+		"""
+		Creates and returns a JWK Key
+		"""
+		self.logger.debug("Creating a JWK Key in JWKPorter instance")
+		access_token = self._obtain_access_token(JWKS_CRUD_SCOPE)
 		endpoint_url = self.jwkporter_base_url + '/jwks/manage'
 		headers = {
 			"Authorization": "Bearer {}".format(access_token),
@@ -89,9 +106,16 @@ class JWKPorter:
 			self.logger.debug(response)
 			raise Exception("Failed to create a JWK: {} {}".format(response.status_code, response.text))
 
-	def verify(self, client_id, client_secret, kid, signed_jwt):
+	def verify_jwt(self, kid, signed_jwt):
+		"""
+		Verifies the signature in a JWT
+
+		Args:
+			kid: Key ID The JWT should be signed with
+			signed_jwt
+		"""
 		self.logger.debug("Verifying signed JWT {} with kid {}".format(signed_jwt, kid))
-		access_token = self._obtain_access_token(client_id, client_secret)
+		access_token = self._obtain_access_token()
 		endpoint_url = self.jwkporter_base_url + '/token/verify'
 		headers = {
 			"Authorization": "Bearer {}".format(access_token),
@@ -108,3 +132,22 @@ class JWKPorter:
 		else:
 			self.logger.debug(response)
 			raise Exception("Failed to verify signed jwt: {} {}".format(response.status_code, response.text))
+	
+	def get_keys(self):
+		"""
+		Retrieves and returns all Public Keys
+		"""
+		self.logger.debug("Fetching Public Keys")
+		endpoint_url = self.jwkporter_base_url + '/jwks'
+
+		headers = {
+			"Content-Type": "application/json"
+		}
+
+		response = requests.get(url=endpoint_url, headers=headers)
+		if response.status_code == 200:
+			self.logger.debug("Got Public Keys: {}", response.content)
+			return response.content
+		else:
+			self.logger.debug(response)
+			raise Exception("Failed to get Public Keys: {} {}".format(response.status_code, response.text))

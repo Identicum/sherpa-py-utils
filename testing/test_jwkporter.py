@@ -10,6 +10,7 @@ sys.path.insert(1, "../")
 from sherpa.utils.basics import Properties
 from sherpa.utils.basics import Logger
 from sherpa.utils.jwkporter import JWKPorter
+from sherpa.utils.license import build_license_json
 
 def main(arguments):
 	properties = Properties("default.properties", "local.properties")
@@ -37,21 +38,22 @@ def run(logger, properties, args):
 	idp_url = properties.get("idp_url")
 
 	logger.debug("Creating JWKPorter instance")
-	jwkporter = JWKPorter(logger, jwkporter_base_url, idp_url)
+	jwkporter = JWKPorter(logger, jwkporter_base_url, idp_url, client_id, client_secret)
 
-	response = jwkporter.create(client_id, client_secret)
-	logger.debug("Decoding content from response and saving kid")
-	data = json.loads(response.decode('utf-8'))
-	kid = data.get("kid")
-
-	response = jwkporter.sign(client_id, client_secret, exp, features,customer, product, kid)
-
-	data = json.loads(response.decode('utf-8'))
-	signed_jwt = data.get("signedJwt")
-	jwkporter.verify(client_id, client_secret, kid, signed_jwt)
-
-
-	logger.debug("run finished successfully")
-
+	try:
+		response = jwkporter.create_key()
+		logger.debug("Decoding content from response and saving kid")
+		data = json.loads(response.decode('utf-8'))
+		kid = data.get("kid")
+		payload = build_license_json(product, customer, exp, features)
+		response = jwkporter.sign_json(payload, kid)
+		data = json.loads(response.decode('utf-8'))
+		signed_jwt = data.get("signedJwt")
+		jwkporter.verify_jwt(kid, signed_jwt)
+		logger.debug("Run finished successfully")
+	except Exception as e:
+		logger.error(e)
+		sys.exit()
+		
 if __name__ == "__main__":
 	sys.exit(main(sys.argv[1:]))
