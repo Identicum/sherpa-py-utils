@@ -277,6 +277,25 @@ class UMAClient:
         """
         return self.execute("DELETE", sub_path)
 
+    def post_samltr_raw_metadata(self, inum, xml_obj, rpt=None):
+        url = "{}/saml/tr/set_metadata/{}".format(self.api_base_endpoint, inum)
+        self.logger.debug("""
+        UMA requests with params:
+        operation: POST
+        url: {}
+        xml_obj: {}
+        """, url, xml_obj)
+        headers=self._get_operation_headers(self.get_rpt("", "POST") if rpt is None else rpt)
+        headers['Content-Type'] = 'application/xml'
+        response = requests.request(
+            "POST",
+            url,
+            data=xml_obj,
+            headers=headers,
+            verify=self.verify
+        )
+        http.validate_response(response, self.logger, "Execute Failed - HTTP Code: {}".format(response.status_code))
+        return response.text
 
     def execute(self, operation, sub_path, json_obj=None, rpt=None):
         """
@@ -306,6 +325,8 @@ class UMAClient:
         try:
             return response.json()
         except:
+            if "saml/tr" in sub_path:
+                return response.text
             return {}
 
 
