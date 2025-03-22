@@ -33,6 +33,6 @@ def build_license_json(product, customer, expiration, features):
             "iat": iat,
             "product": product,
             "customer": customer,
-            "expiration": exp,
+            "exp": exp,
             "features": features_array,
         }
