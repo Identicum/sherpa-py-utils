@@ -8,6 +8,7 @@
 from datetime import datetime
 
 import time
+import uuid
 
 def build_license_json(product, customer, expiration, features):
     """
@@ -35,4 +36,5 @@ def build_license_json(product, customer, expiration, features):
             "customer": customer,
             "exp": exp,
             "features": features_array,
+            "lid": uuid.uuid4()
         }
