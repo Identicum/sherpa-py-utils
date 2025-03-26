@@ -36,5 +36,5 @@ def build_license_json(product, customer, expiration, features):
             "customer": customer,
             "exp": exp,
             "features": features_array,
-            "lid": uuid.uuid4()
+            "lid": str(uuid.uuid4())
         }
