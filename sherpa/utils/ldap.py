@@ -20,20 +20,36 @@ class LDAP(object):
 		self._logger = logger
 		self._logger.debug("LDAP version: " + version("sherpa-py-utils"))
 		ldap_url = "{}://{}:{}".format(protocol, ip_address, port)
+
+		# Set TLS options
+		if verify and protocol == "ldaps":
+			ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+		else:
+			ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+
+		ldap.set_option(ldap.OPT_NETWORK_TIMEOUT, network_timeout)
+		ldap.set_option(ldap.OPT_TIMEOUT, timeout)
+
 		for iteration in range(iterations):
 			try:
-				ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND) if verify and protocol == "ldaps" else ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-				ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-				ldap.set_option(ldap.OPT_NETWORK_TIMEOUT, network_timeout)
-				ldap.set_option(ldap.OPT_TIMEOUT, timeout)
-				logger.info("Trying to connect to {}, iteration: {}", ldap_url, iteration+1)
+				logger.info("Trying to connect to {}, iteration {} of {}.", ldap_url, iteration+1, iterations)
 				self._conn = ldap.initialize(ldap_url)
 				self._conn.protocol_version = ldap.VERSION3
 				logger.info("Binding using {}", user_dn)
-				self._conn.simple_bind_s(user_dn, user_password)
-				logger.debug("LDAP bind OK to ({}) with user: {}", ldap_url, user_dn)
+				bind_result = self._conn.simple_bind_s(user_dn, user_password)
+				logger.debug("LDAP bind OK ({}) to {} with user: {}.", bind_result[0], ldap_url, user_dn)
 				return
-			except:
+			except ldap.STRONG_AUTH_REQUIRED as e:
+				logger.error("LDAP strong authentication required.")
+				raise Exception(e)
+			except ldap.PROTOCOL_ERROR as e:
+				logger.error("LDAP protocol error.")
+				raise Exception(e)
+			except ldap.INVALID_CREDENTIALS as e:
+				logger.error("LDAP invalid credentials.")
+				raise Exception(e)
+			except Exception as e:
+				logger.error("LDAP generic error: {}.", e)
 				logger.info("Waiting {} seconds.".format(interval))
 				time.sleep(interval)
 		logger.error("Failed to connect to LDAP {}.".format(protocol, ip_address, port))
