@@ -59,6 +59,7 @@ def run(logger, properties):
 	for object in ldap.get_objects(users_base_dn, filter="(objectclass=user)", page_size=20):
 		cvs_row = ldap.get_attributes_csv(object, attr_list=["cn","sn","givenName","employeeID","title", "employeeType", "memberOf", "department"], multivalue_separator="##")
 		logger.info("CSV row: {}", cvs_row)
+	ldap.get_object("ou=sherpa_groups,dc=sherpa-demo,dc=com")
 
 
 if __name__ == "__main__":
