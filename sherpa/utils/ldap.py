@@ -136,7 +136,7 @@ class LDAP(object):
 
 
 	def set_ad_password(self, object_dn, password):
-		self._logger.debug("Settind AD password on: {}.", object_dn)
+		self._logger.debug("Setting AD password on: {}.", object_dn)
 		password_with_quotes = '"{}"'.format(password)
 		encoded_password = password_with_quotes.encode('utf-16-le')
 		self._logger.debug("Password: {}, password_with_quotes: {}, encoded_password: {},  object_dn: {}", password, password_with_quotes, encoded_password, object_dn)
