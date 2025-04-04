@@ -10,7 +10,8 @@ import re
 from os.path import isfile, join, isdir
 from os import listdir
 from sherpa.utils import validators
-
+import string
+import secrets
 
 class Logger(object):
     """
@@ -206,3 +207,25 @@ class Properties:
         file_out.write(properties)
         file_out.close()
         self.logger.debug("properties successfully wrote in {}", file_path)
+
+def generate_random_password():
+    """
+    Returns a random 12 character password including 4 lowercase letters, 4 uppercase and 4 numbers
+
+    Returns:
+        str: Generated password
+    """
+    letters = string.ascii_letters
+    random_letters = ""
+    for i in range(8):
+        if i < 4:
+            random_letters += "".join(secrets.choice(letters).lower())
+        else:
+            random_letters += "".join(secrets.choice(letters).upper())
+        
+    digits = string.digits
+    random_digits = ""
+    for i in range(4):
+        random_digits += "".join(secrets.choice(digits))
+    # Random password example: ngnuKEVQ8708
+    return random_letters + random_digits
