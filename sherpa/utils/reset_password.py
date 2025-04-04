@@ -69,10 +69,15 @@ def reset_passwords(logger, properties, environment: str):
                 except KeyError:
                     keycloak_user_lastlogintime = None
                 
-                user_log_line = '"{}","{}","{}","{}"\n'.format(
+                # Saving the user's amount of active sessions
+                sessions_amt = len(keycloak_admin.get_sessions(keycloak_user_id))
+
+                # Logging user data to changed passwords log
+                user_log_line = '"{}","{}","{}","{}","{}"\n'.format(
                     user_email, 
                     keycloak_user_id, 
-                    keycloak_user_createdtimestamp, 
+                    keycloak_user_createdtimestamp,
+                    sessions_amt,
                     keycloak_user_lastlogintime if keycloak_user_lastlogintime else ""
                 )
                 logger.trace("User Representation JSON: {}", keycloak_users[0])
