@@ -208,24 +208,28 @@ class Properties:
         file_out.close()
         self.logger.debug("properties successfully wrote in {}", file_path)
 
-def generate_random_password():
+def generate_random_password(num_lower=4, num_upper=4, num_digits=4):
     """
-    Returns a random 12 character password including 4 lowercase letters, 4 uppercase and 4 numbers
+    Generate a random password
+    :param num_lower: Number of lowercase characters
+    :param num_upper: Number of uppercase characters
+    :param num_digits: Number of digits
+    :return: a str with the generated password
+    """
 
-    Returns:
-        str: Generated password
-    """
     letters = string.ascii_letters
-    random_letters = ""
-    for i in range(8):
-        if i < 4:
-            random_letters += "".join(secrets.choice(letters).lower())
-        else:
-            random_letters += "".join(secrets.choice(letters).upper())
+
+    lower_letters = ""
+    for i in range(num_lower):
+        lower_letters += "".join(secrets.choice(letters).lower())
+
+    upper_letters = ""
+    for i in range(num_upper):
+        upper_letters += "".join(secrets.choice(letters).upper())
         
     digits = string.digits
     random_digits = ""
-    for i in range(4):
+    for i in range(num_digits):
         random_digits += "".join(secrets.choice(digits))
-    # Random password example: ngnuKEVQ8708
-    return random_letters + random_digits
+
+    return lower_letters + upper_letters + random_digits
