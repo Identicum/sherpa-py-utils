@@ -22,11 +22,11 @@ def run(logger, properties):
         logger.info("Instantiating OIDCClient Class")
         oidcclient = OIDCClient(properties.get("idp_url"), logger=logger, verify=False)
         logger.info("Testing do_ropc")
-        client_credentials = "{}:{}".format(properties.get("oidc_client_id"), properties.get("client_secret"))
+        client_credentials = "{}:{}".format(properties.get("ropc_client_id"), properties.get("ropc_client_secret"))
         output = oidcclient.do_ropc(
             client_credentials=base64.b64encode(client_credentials.encode()).decode(),
-            username=properties.get("oidc_test_username"),
-            password=properties.get("oidc_test_password")
+            username=properties.get("ropc_test_username"),
+            password=properties.get("ropc_test_password")
         )
         logger.trace(output)
         
