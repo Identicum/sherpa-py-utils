@@ -17,19 +17,6 @@ def main():
 	logger.info("{} finished.".format(os.path.basename(__file__)))
 
 
-def test_variables_replacement(logger, properties):
-	origin_file_path = "replace.xml"
-	with open(origin_file_path, "r") as file_object:
-		origin_data = file_object.read()
-	logger.debug("origin_data: {}.", origin_data)
-	temp_file_path = "/tmp/replace.tmp"
-	shutil.copyfile(origin_file_path, temp_file_path)
-	properties.replace(temp_file_path)
-	with open(temp_file_path, "r") as file_object:
-		replaced_data = file_object.read()
-	logger.debug("replaced_data: {}.", replaced_data)
-
-
 def create_ldap_objects(logger, properties, ldap, base_dn, users_base_dn, groups_base_dn):
 	ldap.create_ad_ou(base_dn, "sherpa_users", ignore_if_exists=True)
 	ldap.create_ad_ou(base_dn, "sherpa_groups", ignore_if_exists=True)
