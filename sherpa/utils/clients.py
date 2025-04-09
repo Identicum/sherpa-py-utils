@@ -115,21 +115,29 @@ class OIDCClient:
     def do_ropc(self, client_credentials, username, password, scope="openid"):
         """
         returns JSON from response
-        :param username
-        :param password
-        :param scope(s)
+        
+        :param client_credentials: 'client_id:client_secret' in base64 encoded format
+        :param: username
+        :param: password
+        :param: scope(s)
         :return: a dict that represents the JSON response
         """
         headers = self._get_basic_header(client_credentials)
+        self.logger.trace("Headers: {}", headers)
         payload = {
             'grant_type': 'password',
             'username': username,
             'password': password,
             'scope': scope
         }
-        http_response = requests.post(self.well_known['token_endpoint'], data=payload, headers=headers, verify=self.verify)
+        token_endpoint = self.well_known['token_endpoint']
+        self.logger.trace("POST Request to {} with JSON Payload: {}", token_endpoint, payload)
+        http_response = requests.post(token_endpoint, data=payload, headers=headers, verify=self.verify)
         json_response = http_response.json()
-        self.logger.debug("HTTP Response: {}", str(json_response))
+        if "error" in json_response:
+            raise Exception(json_response["error_description"])
+        else:
+            self.logger.trace("HTTP Response: {}", str(json_response))
         return json_response
 
 
