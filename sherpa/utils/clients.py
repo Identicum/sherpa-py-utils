@@ -230,7 +230,7 @@ class UMAClient:
                 https://gluu.org/auth/oxtrust.customscript.write \
                 https://gluu.org/auth/oxtrust.ldapauthentication.read \
                 https://gluu.org/auth/oxtrust.ldapauthentication.write \
-                https://gluu.org/auth/oxtrust.OxauthjsonSetting.read \
+                https://gluu.org/auth/oxtrust.oxauthjsonSetting.read \
                 https://gluu.org/auth/oxtrust.oxauthjsonSetting.write \
                 https://gluu.org/auth/oxtrust.oxtrustjsonSetting.write \
                 https://gluu.org/auth/oxtrust.oxtrustjsonSetting.read \
