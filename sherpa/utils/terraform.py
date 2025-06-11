@@ -36,8 +36,9 @@ def create_workspace(logger, realm_folder, workspace):
 	return output
 
 
-def apply(logger, realm_folder):
+def apply(logger, realm_folder, var_files=[]):
 	cmd = "cd {} && terraform apply --auto-approve".format(realm_folder)
+	cmd += " -var-file={}".format(" -var-file=".join(var_files)) if var_files else ""
 	logger.debug("Executing '{}'", cmd)
 	output = os_cmd.execute_in_bash(cmd, logger)
 	# ToDo: check if terraform apply was successful
@@ -53,8 +54,10 @@ def delete_workspace_state(logger, realm_folder, workspace):
 	return output
 
 
-def plan2binary(logger, realm_folder, binary_plan):
-	cmd = "cd {} && terraform plan -out={} -no-color > /dev/null".format(realm_folder, binary_plan)
+def plan2binary(logger, realm_folder, binary_plan, var_files=[]):
+	cmd = "cd {} && terraform plan".format(realm_folder)
+	cmd += " -var-file={}".format(" -var-file=".join(var_files)) if var_files else ""
+	cmd += " -out={} -no-color > /dev/null".format(binary_plan)
 	logger.debug("Executing '{}'", cmd)
 	output = os_cmd.execute_in_bash(cmd, logger)
 	# ToDo: check if terraform plan was successful
