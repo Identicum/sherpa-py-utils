@@ -72,7 +72,7 @@ class Logger(object):
         function = sys._getframe(2).f_code.co_name
         if self._log_level(self._level) >= self._log_level(function_log_level):
             log_line = "{} || {} || {} || {} || {}".format(datetime.now().isoformat(sep=' ', timespec='milliseconds'),
-                                                           function_log_level, self._name, function,
+                                                           function_log_level.ljust(5), self._name, function,
                                                            msg.format(*args) if len(args) > 0 else msg)
             try:
                 print(log_line)
