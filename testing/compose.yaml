@@ -1,3 +1,5 @@
+name: sherpa-py-utils
+
 secrets:
     samba-admin-password:
         file: ./samba_admin.password
