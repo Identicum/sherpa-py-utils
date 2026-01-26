@@ -38,14 +38,16 @@ def to_base64_creds(user, password):
 	return base64_bytes.decode('ascii')
 
 
-def wait_for_endpoint(url, iterations, interval, logger, headers={}, verify=True):
+def wait_for_endpoint(url, iterations, interval, logger, headers={}, valid_status_code_range = range(200, 300), verify=True):
 	"""
 	Wait for a http endpoint until is up and running
-	:param headers: http headers
 	:param url: http endpoint
 	:param iterations: number of retries
 	:param interval: waiting interval between retries
 	:param logger: sherpa log obj
+	:param headers: http headers
+	:param valid_status_codes: range to expect resulting status code to be within
+	:param verify: certificate validation (gets passed onto requests.request())
 	:return: None
 	"""
 	endpoint_ready = False
@@ -57,7 +59,7 @@ def wait_for_endpoint(url, iterations, interval, logger, headers={}, verify=True
 			logger.trace("http_response: {}, type: {}", http_response, type(http_response))
 			response_code = http_response.status_code
 			logger.trace("response_code: {}, type: {}", response_code, type(response_code))
-			if 200 <= response_code < 300:
+			if response_code in valid_status_code_range:
 				endpoint_ready = True
 				break
 		except:
