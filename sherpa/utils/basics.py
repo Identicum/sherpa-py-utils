@@ -23,10 +23,11 @@ class Logger(object):
         log_path: file to append log
     """
 
-    def __init__(self, name, log_level="DEBUG", log_path="sherpa_logger.log"):
+    def __init__(self, name, log_level="DEBUG", log_path="sherpa_logger.log", stdout=True):
         self._name = name
         self._level = log_level
         self.log_path = log_path
+        self.stdout = stdout
 
     def trace(self, msg, *args):
         """
@@ -75,7 +76,8 @@ class Logger(object):
                                                            function_log_level.ljust(5), self._name, function,
                                                            msg.format(*args) if len(args) > 0 else msg)
             try:
-                print(log_line)
+                if self.stdout:
+                    print(log_line)
                 f = open(self.log_path, 'a')
                 f.write(log_line + "\n")
                 f.close()
