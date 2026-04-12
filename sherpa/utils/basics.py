@@ -34,35 +34,35 @@ class Logger(object):
         TRACE log
         :param msg: msg to log
         """
-        self._log("TRACE", msg, *args)
+        return self._log("TRACE", msg, *args)
 
     def debug(self, msg, *args):
         """
         DEBUG log
         :param msg: msg to log
         """
-        self._log("DEBUG", msg, *args)
+        return self._log("DEBUG", msg, *args)
 
     def info(self, msg, *args):
         """
         INFO log
         :param msg: msg to log
         """
-        self._log("INFO", msg, *args)
+        return self._log("INFO", msg, *args)
 
     def warn(self, msg, *args):
         """
         WARN log
         :param msg: msg to log
         """
-        self._log("WARN", msg, *args)
+        return self._log("WARN", msg, *args)
 
     def error(self, msg, *args):
         """
         ERROR log
         :param msg: msg to log
         """
-        self._log("ERROR", msg, *args)
+        return self._log("ERROR", msg, *args)
 
     def _log(self, function_log_level, msg, *args):
         """
@@ -83,6 +83,8 @@ class Logger(object):
                 f.close()
             except Exception:
                 pass
+            return log_line
+        return None
 
     def _log_level(self, argument):
         """
