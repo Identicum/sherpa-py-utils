@@ -10,7 +10,7 @@ from setuptools import setup
 
 setup(
     name='sherpa-py-utils',
-    version='1.1.0',
+    version='1.1.1',
     description='Python utilities on Identicum projects',
     url='git@github.com:Identicum/sherpa-py-utils.git',
     author='Identicum',
