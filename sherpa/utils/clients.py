@@ -1,5 +1,5 @@
 # sherpa-py-utils is available under the MIT License. https://github.com/Identicum/sherpa-py-utils/
-# Copyright (c) 2025, Identicum - https://identicum.com/
+# Copyright (c) 2026, Identicum - https://identicum.com/
 #
 # Authors:
 #  Ezequiel O Sandoval - esandoval@identicum.com
