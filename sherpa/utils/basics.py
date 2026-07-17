@@ -5,13 +5,14 @@
 #
 
 from datetime import datetime
-import sys
-import re
+from importlib.metadata import version
 from os.path import isfile, join, isdir
 from os import listdir
+import re
+import secrets
 from sherpa.utils import validators
 import string
-import secrets
+import sys
 
 class Logger(object):
     """
@@ -28,6 +29,7 @@ class Logger(object):
         self._level = log_level
         self.log_path = log_path
         self.stdout = stdout
+        self.debug("Logger version: " + version("sherpa-py-utils"))
 
     def trace(self, msg, *args):
         """
@@ -70,7 +72,12 @@ class Logger(object):
         :param function_log_level: log level
         :param msg: msg to log
         """
-        function = sys._getframe(2).f_code.co_name
+        frame = sys._getframe(1)
+        # Method names to skip when walking the stack for the calling function's name, so wrapper/proxy objects exposing the same method names don't get misattributed.
+        _LOG_METHOD_NAMES = {"trace", "debug", "info", "warn", "error", "_log"}
+        while frame and frame.f_code.co_name in _LOG_METHOD_NAMES:
+            frame = frame.f_back
+        function = frame.f_code.co_name if frame else "?"
         if self._log_level(self._level) >= self._log_level(function_log_level):
             log_line = "{} || {} || {} || {} || {}".format(datetime.now().isoformat(sep=' ', timespec='milliseconds'),
                                                            function_log_level.ljust(5), self._name, function,
@@ -105,22 +112,21 @@ class Properties:
     """ Properties is an auxiliary class to handle Java-properties-like files
         """
 
-    def __init__(self, props_file_path="./local.properties", default_props_file_path="./sample.properties",
-                 param_prefix="{{", param_suffix="}}"):
-        self.logger = Logger("Properties")
+    def __init__(self, props_file_path="./local.properties", default_props_file_path="./sample.properties", param_prefix="{{", param_suffix="}}", logger=None):
+        self.logger = logger if logger is not None else Logger("Properties")
+        self.logger.debug("Properties version: " + version("sherpa-py-utils"))
         self.param_prefix = param_prefix
-        self.logger.trace("param prefix: {}", param_prefix)
         self.param_suffix = param_suffix
-        self.logger.trace("param suffix: {}", param_suffix)
-        self.logger.trace("Loading default properties...")
+        self.logger.trace("props_file_path: {}, default_props_file_path: {}, param_prefix: {}, param_suffix: {}", props_file_path, default_props_file_path, self.param_prefix, self.param_suffix)
+        # self.logger.trace("Loading default properties...")
         self.properties = self._load(default_props_file_path).copy()
-        self.logger.trace("Default properties: {}", self.properties)
-        self.logger.trace("Loading local properties...")
+        # self.logger.trace("Default properties: {}", self.properties)
+        # self.logger.trace("Loading local properties...")
         local_properties = self._load(props_file_path)
-        self.logger.trace("Local properties: {}", self.properties)
-        self.logger.trace("Merging Local properties into Default properties...")
+        # self.logger.trace("Local properties: {}", self.properties)
+        # self.logger.trace("Merging Local properties into Default properties...")
         self.properties.update(local_properties)
-        self.logger.trace("Properties: {}", self.properties)
+        # self.logger.trace("Properties: {}", self.properties)
 
     def get(self, key):
         return self.properties.get(key, None)
@@ -156,7 +162,7 @@ class Properties:
                     key = key_value[0].strip()
                     value = separator.join(key_value[1:]).strip().strip('"')
                     props[key] = value
-                    self.logger.trace("Key: {} - Value: {} loaded", key, value)
+                    # self.logger.trace("Key: {} - Value: {} loaded", key, value)
         return props
 
     def _replace_file(self, file_path):

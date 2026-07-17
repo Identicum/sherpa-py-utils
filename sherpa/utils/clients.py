@@ -18,7 +18,7 @@ class OIDCClient:
     """
     OIDCClient has multiple basic functionality that can be useful for OpenID python interactions
     """
-    def __init__(self, idp_url, logger=Logger("OIDCClient"), verify=True):
+    def __init__(self, idp_url, logger=None, verify=True):
         """
         Params
         :param idp_url: for instance 'https://myidp.myorg.com'
@@ -26,9 +26,10 @@ class OIDCClient:
         :param verify: Boolean. Check SSL/TLS certificate, default True
         """
         self.idp_url = idp_url.rstrip("/")
-        self.logger = logger
+        self.logger = logger if logger is not None else Logger("OIDCClient")
         self.verify = verify
         self.logger.debug("OIDCClient version: " + version("sherpa-py-utils"))
+        self.logger.trace("idp_url: {}, verify: {}", self.idp_url, self.verify)
         self.well_known = self.get_well_known()
 
 
@@ -172,20 +173,20 @@ class UMAClient:
     Provides basic UMA interaction on a protected UMA API - clients authenticate with basic_credentials
     """
 
-    def __init__(self, api_base_endpoint, b64_client_credentials, logger=Logger("UMAClient"), verify=True, is_gluu_45=False):
+    def __init__(self, api_base_endpoint, b64_client_credentials, logger=None, verify=True, is_gluu_45=False):
         """
         Constructor
         :param api_base_endpoint: for instance "https://myidp.org.com/identity/restv1/api/v1
         :param b64_client_credentials: 'client_id:client_secret' in base64 encoded format
         :param logger: Identicum logger. If it is None, default will be created.
         """
+        self.logger = logger if logger is not None else Logger("UMAClient")
+        self.logger.debug("UMAClient version: " + version("sherpa-py-utils"))
         self.api_base_endpoint = api_base_endpoint
         self.b64_client_credentials = b64_client_credentials
-        self.logger = logger
-        self.logger.debug("UMAClient version: " + version("sherpa-py-utils"))
         self.verify = verify
         self.is_gluu_45 = is_gluu_45
-        self.logger.debug("is_gluu_45 deployment: {}", is_gluu_45)
+        self.logger.trace("api_base_endpoint: {}, verify: {}, is_gluu_45: {}", self.api_base_endpoint, self.verify, self.is_gluu_45)
 
 
     def get_rpt(self, path, operation="GET"):
@@ -249,7 +250,7 @@ class UMAClient:
                 https://gluu.org/auth/oxtrust.passportconfig.write \
                 https://gluu.org/auth/oxtrust.passportconfig.read'
             }
-        return OIDCClient(idp_url, self.logger, self.verify).request_to_token_endpoint(self.b64_client_credentials, payload)['access_token']
+        return OIDCClient(idp_url=idp_url, logger=self.logger, verify=self.verify).request_to_token_endpoint(self.b64_client_credentials, payload)['access_token']
 
 
     def get(self, sub_path):
