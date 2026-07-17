@@ -25,7 +25,7 @@ class OIDCClient:
         :param logger: Identicum logger. If None, default will be created
         :param verify: Boolean. Check SSL/TLS certificate, default True
         """
-        self.idp_url = idp_url
+        self.idp_url = idp_url.rstrip("/")
         self.logger = logger
         self.verify = verify
         self.logger.debug("OIDCClient version: " + version("sherpa-py-utils"))
