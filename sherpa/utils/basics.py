@@ -8,6 +8,7 @@ from datetime import datetime
 from importlib.metadata import version
 from os.path import isfile, join, isdir
 from os import listdir
+from pathlib import Path
 import re
 import secrets
 from sherpa.utils import validators
@@ -217,6 +218,168 @@ class Properties:
         file_out.write(properties)
         file_out.close()
         self.logger.debug("properties successfully wrote in {}", file_path)
+
+class Template:
+    """
+    Template renders "IF ... ENDIF" conditional blocks embedded in a text file as
+    comments, evaluated against a Properties instance.
+
+    Directives look like (default XML/HTML comment_start/comment_end):
+        <!-- IF google.enabled --> ... <!-- ENDIF -->
+        <!-- IF google.groups == "XXX" --> ... <!-- ENDIF -->
+    Blocks may repeat any number of times in a file and may nest. A directive
+    that sits alone on its own line also consumes that line's indentation and
+    trailing newline, so removing a block doesn't leave a blank line behind; a
+    directive sharing a line with other content is left untouched around it.
+
+    comment_start/comment_end are configurable so other comment styles can be
+    used for non-XML files, e.g. a line-comment style for Terraform/HCL:
+        Template(properties, comment_start="#", comment_end="")
+        # IF google.enabled
+        ...
+        # ENDIF
+    Pass a falsy comment_end for line-comment styles, where the directive runs
+    to the end of the line instead of to a closing delimiter.
+    """
+
+    def __init__(self, properties, logger=None, comment_start="<!--", comment_end="-->"):
+        self.properties = properties
+        self.logger = logger if logger is not None else Logger("Template")
+        self.logger.debug("Template version: " + version("sherpa-py-utils"))
+        self.comment_start = comment_start
+        self.comment_end = comment_end
+        self._directive_re = self._build_directive_re(comment_start, comment_end)
+
+    def render(self, content):
+        """
+        Apply IF/ENDIF conditional blocks to content, evaluated against self.properties.
+        Always returns a string (possibly blank, if everything was excluded).
+        :param content: str to render
+        :return: rendered str
+        """
+        tokens = self._tokenize(content)
+        rendered, end_index, terminator = self._render_tokens(tokens, 0, True)
+        if terminator is not None:
+            validators.raise_and_log(self.logger, ValueError, "ENDIF found with no matching IF")
+        assert end_index == len(tokens)
+        return rendered
+
+    def process_file(self, input_path, output_path, discard_empty_file=True):
+        """
+        Read input_path, render it, and write the result to output_path.
+        :param input_path: file to read
+        :param output_path: file to write the rendered content to
+        :param discard_empty_file: if True, skip writing (and return None) when the
+            rendered content is blank, e.g. because it was entirely inside a false IF.
+        :return: output_path as a Path, or None if the file was discarded
+        """
+        input_path = Path(input_path)
+        output_path = Path(output_path)
+        self.logger.debug("Rendering {}", input_path)
+        content = input_path.read_text()
+        rendered = self.render(content)
+        if discard_empty_file and not rendered.strip():
+            self.logger.debug("{} fully excluded, skipping.", input_path)
+            return None
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(rendered)
+        self.logger.debug("Rendered {} -> {}", input_path, output_path)
+        return output_path
+
+    def process_folder(self, input_dir, output_dir, discard_empty_file=True):
+        """
+        Recursively render every file under input_dir, mirroring its relative
+        folder structure into output_dir. A destination subfolder is only created
+        if a file is actually written into it.
+        :param input_dir: folder to read files from, recursively
+        :param output_dir: folder to mirror rendered files into
+        :param discard_empty_file: see process_file
+        :return: list of Path written
+        """
+        input_dir = Path(input_dir)
+        output_dir = Path(output_dir)
+        written = []
+        for file_path in sorted(p for p in input_dir.rglob("*") if p.is_file()):
+            relative_path = file_path.relative_to(input_dir)
+            destination = self.process_file(file_path, output_dir / relative_path, discard_empty_file=discard_empty_file)
+            if destination is not None:
+                written.append(destination)
+        return written
+
+    def _build_directive_re(self, comment_start, comment_end):
+        start = re.escape(comment_start)
+        if comment_end:
+            end = re.escape(comment_end)
+            pattern = r"[ \t]*" + start + r"\s*(IF|ENDIF)\b(.*?)" + end + r"[ \t]*\n?"
+            return re.compile(pattern, re.DOTALL)
+        # Line-comment style (no closing delimiter): directive runs to end of line.
+        pattern = r"[ \t]*" + start + r"\s*(IF|ENDIF)\b(.*?)[ \t]*(?:\n|$)"
+        return re.compile(pattern)
+
+    def _tokenize(self, content):
+        tokens = []
+        pos = 0
+        for match in self._directive_re.finditer(content):
+            if match.start() > pos:
+                tokens.append(("text", content[pos:match.start()]))
+            tokens.append(("directive", match.group(1), match.group(2).strip()))
+            pos = match.end()
+        if pos < len(content):
+            tokens.append(("text", content[pos:]))
+        return tokens
+
+    def _render_tokens(self, tokens, index, take):
+        output = []
+        while index < len(tokens):
+            token = tokens[index]
+            if token[0] == "text":
+                if take:
+                    output.append(token[1])
+                index += 1
+                continue
+            _, kind, expr = token
+            if kind == "ENDIF":
+                return "".join(output), index, kind
+            branch_take = take and self._evaluate_condition(expr)
+            branch_content, index, terminator = self._render_tokens(tokens, index + 1, branch_take)
+            if terminator != "ENDIF":
+                validators.raise_and_log(self.logger, ValueError, "IF '{}' has no matching ENDIF".format(expr))
+            output.append(branch_content)
+            index += 1  # consume the ENDIF token itself
+        return "".join(output), index, None
+
+    def _evaluate_condition(self, expr):
+        negate = False
+        if expr.startswith("!"):
+            negate = True
+            expr = expr[1:].strip()
+        elif expr.lower().startswith("not "):
+            negate = True
+            expr = expr[4:].strip()
+
+        if not expr:
+            validators.raise_and_log(self.logger, ValueError, "IF directive has an empty condition")
+
+        if "==" in expr:
+            key, _, raw_value = expr.partition("==")
+            result = self._property_value(key.strip()) == self._strip_quotes(raw_value.strip())
+        elif "!=" in expr:
+            key, _, raw_value = expr.partition("!=")
+            result = self._property_value(key.strip()) != self._strip_quotes(raw_value.strip())
+        else:
+            result = self._property_value(expr).lower() == "true"
+        return not result if negate else result
+
+    def _property_value(self, key):
+        value = self.properties.get(key)
+        return value.strip() if value is not None else ""
+
+    @staticmethod
+    def _strip_quotes(value):
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            return value[1:-1]
+        return value
+
 
 def generate_random_password(num_lower=4, num_upper=4, num_digits=4):
     """
