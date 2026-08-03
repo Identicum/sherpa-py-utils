@@ -196,6 +196,10 @@ def validate_properties_file(properties_file_path, default_properties_file_path,
     effective.update(override_values)
 
     errors = []
+    unknown_keys = sorted(set(override_values) - set(specs))
+    for key in unknown_keys:
+        errors.append("{} is not a recognized property (check for typos)".format(key))
+
     for key, spec in specs.items():
         value = effective.get(key, "")
         if spec["required"] and not value:
