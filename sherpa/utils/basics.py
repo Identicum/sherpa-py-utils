@@ -109,6 +109,118 @@ class Logger(object):
         return switcher.get(argument, "Invalid level")
 
 
+def _parse_properties_file(file_path):
+    """
+    Read a property file into a plain dict, ignoring comments/blank lines.
+    Module-level so it can be reused without a Properties/Logger instance.
+    """
+    separator = "="
+    comment_char = "#"
+    props = {}
+    with open(file_path, "rt") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith(comment_char):
+                key_value = line.split(separator)
+                key = key_value[0].strip()
+                value = separator.join(key_value[1:]).strip().strip('"')
+                props[key] = value
+    return props
+
+
+_MANIFEST_TAG_RE = re.compile(r"^#\s*@(\w+)(?:\s+(.*))?$")
+
+
+def _parse_manifest_specs(file_path):
+    """
+    Parse a default.properties-style file, reading the `# @tag value` comment
+    block directly above each key into a spec: {type, values, required, required_if}.
+    required_if is a list of AND-groups of (key, value) tuples; a key is
+    required if ANY group matches (OR across groups, AND within a group).
+    Returns (specs, values), values being the plain key -> value dict.
+    """
+    specs = {}
+    values = {}
+    pending = {}
+    with open(file_path, "rt") as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line:
+                pending = {}
+                continue
+            tag_match = _MANIFEST_TAG_RE.match(line)
+            if tag_match:
+                tag, tag_value = tag_match.group(1), (tag_match.group(2) or "").strip()
+                pending.setdefault(tag, []).append(tag_value)
+                continue
+            if line.startswith("#"):
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            values[key] = value.strip().strip('"')
+            required_if = []
+            for raw_condition_group in pending.get("required_if", []):
+                group = []
+                for condition in raw_condition_group.split(","):
+                    cond_key, _, cond_value = condition.partition("=")
+                    group.append((cond_key.strip(), cond_value.strip()))
+                required_if.append(group)
+            specs[key] = {
+                "type": pending.get("type", [None])[0],
+                "values": [v.strip() for v in pending["values"][0].split(",")] if pending.get("values") else [],
+                "required": pending.get("required", [""])[0].strip().lower() == "true",
+                "required_if": required_if,
+            }
+            pending = {}
+    return specs, values
+
+
+def validate_properties_file(properties_file_path, default_properties_file_path, logger=None):
+    """
+    Validate that properties_file_path satisfies the @type/@values/@required/
+    @required_if specs declared in comments above each key in
+    default_properties_file_path. Values are checked as effective values:
+    default_properties_file_path's value overridden by properties_file_path's,
+    if present.
+    Raises ValueError listing every violation found. Meant to run before a
+    Properties instance is created, so it takes file paths rather than a
+    Properties object.
+    :param properties_file_path: path to the overriding properties file (e.g. local.properties)
+    :param default_properties_file_path: path to the annotated default properties file (e.g. default.properties)
+    :param logger: Identicum logger - if None, a default one is created
+    """
+    logger = logger if logger is not None else Logger("basics")
+    specs, default_values = _parse_manifest_specs(default_properties_file_path)
+    override_values = _parse_properties_file(properties_file_path)
+    effective = default_values.copy()
+    effective.update(override_values)
+
+    errors = []
+    for key, spec in specs.items():
+        value = effective.get(key, "")
+        if spec["required"] and not value:
+            errors.append("{} is required but has no value".format(key))
+            continue
+        if not value:
+            for group in spec["required_if"]:
+                if all(effective.get(cond_key, "") == cond_value for cond_key, cond_value in group):
+                    condition = " and ".join("{}={}".format(cond_key, cond_value) for cond_key, cond_value in group)
+                    errors.append("{} is required when {}".format(key, condition))
+                    break
+            continue
+        if spec["type"] == "enum" and spec["values"] and value not in spec["values"]:
+            errors.append("{} has value '{}', expected one of {}".format(key, value, spec["values"]))
+        elif spec["type"] == "bool" and value.lower() not in ("true", "false"):
+            errors.append("{} has value '{}', expected true/false".format(key, value))
+        elif spec["type"] == "int" and not re.fullmatch(r"-?\d+", value):
+            errors.append("{} has value '{}', expected an integer".format(key, value))
+
+    if errors:
+        validators.raise_and_log(logger, ValueError, "{} failed properties validation:\n  - {}".format(
+            properties_file_path, "\n  - ".join(errors)))
+    return True
+
+
 class Properties:
     """ Properties is an auxiliary class to handle Java-properties-like files
         """
@@ -151,20 +263,8 @@ class Properties:
         """
         Read a property file passed as parameter
         """
-        separator = "="
-        comment_char = "#"
-        props = {}
         self.logger.trace("Opening file from {}", file_path)
-        with open(file_path, "rt") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith(comment_char):
-                    key_value = line.split(separator)
-                    key = key_value[0].strip()
-                    value = separator.join(key_value[1:]).strip().strip('"')
-                    props[key] = value
-                    # self.logger.trace("Key: {} - Value: {} loaded", key, value)
-        return props
+        return _parse_properties_file(file_path)
 
     def _replace_file(self, file_path):
         """
