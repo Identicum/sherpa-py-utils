@@ -7,7 +7,7 @@
 from datetime import datetime
 from importlib.metadata import version
 from os.path import isfile, join, isdir
-from os import listdir
+from os import environ, listdir
 from pathlib import Path
 import re
 import secrets
@@ -227,9 +227,15 @@ def validate_properties_file(properties_file_path, default_properties_file_path,
 
 class Properties:
     """ Properties is an auxiliary class to handle Java-properties-like files
+
+        Values are resolved in layers, each one overriding the previous:
+            default_props_file_path  <  props_file_path  <  environment variables
+
+        The environment layer is optional and only active when env_namespace is
+        given. See _apply_env_layer for its rules.
         """
 
-    def __init__(self, props_file_path="./local.properties", default_props_file_path="./sample.properties", param_prefix="{{", param_suffix="}}", logger=None):
+    def __init__(self, props_file_path="./local.properties", default_props_file_path="./sample.properties", param_prefix="{{", param_suffix="}}", logger=None, *, env_namespace=None):
         self.logger = logger if logger is not None else Logger("Properties")
         self.logger.debug("Properties version: " + version("sherpa-py-utils"))
         self.param_prefix = param_prefix
@@ -238,18 +244,82 @@ class Properties:
         # self.logger.trace("Loading default properties...")
         self.properties = self._load(default_props_file_path).copy()
         # self.logger.trace("Default properties: {}", self.properties)
+        # Tracks where the effective value of each key came from, so that
+        # "why does this property have this value?" stays answerable with 3 layers.
+        self._sources = dict.fromkeys(self.properties, "default")
         # self.logger.trace("Loading local properties...")
         local_properties = self._load(props_file_path)
         # self.logger.trace("Local properties: {}", self.properties)
         # self.logger.trace("Merging Local properties into Default properties...")
         self.properties.update(local_properties)
+        self._sources.update(dict.fromkeys(local_properties, "local"))
         # self.logger.trace("Properties: {}", self.properties)
+        if env_namespace:
+            self._apply_env_layer(env_namespace)
 
     def get(self, key):
         return self.properties.get(key, None)
 
+    def get_source(self, key):
+        """
+        Where the effective value of key came from: "default", "local", "put", or the
+        name of the environment variable that overrode it.
+        :param key: property name
+        :return: a str, or None if the key is unknown
+        """
+        return self._sources.get(key, None)
+
     def put(self, key, value):
         self.properties[key] = value
+        self._sources[key] = "put"
+
+    def _apply_env_layer(self, namespace):
+        """
+        Overlay environment variables on top of the file layers, in place.
+
+        A property is looked up as <namespace><KEY>, uppercased and with dots turned
+        into underscores: iga.ad.1.bind_dn -> SHERPA_IGA_AD_1_BIND_DN. The mapping is
+        exact and one-to-one, so each property has a single documentable variable name.
+
+        Rules, all of them fail-fast because a silently wrong configuration value is
+        more expensive than a deployment that refuses to start:
+        - Only keys already loaded from the files can be overridden; the files remain
+          the catalog of what exists.
+        - A variable carrying the namespace that matches no property is an error,
+          which is what catches typos such as SHERPA_LOG_LEVL.
+        - A variable that is set but empty is an error. Container tooling produces
+          empty values by accident (compose turns an undefined `- X=${VAR}` into an
+          empty string), and taking that as an override would silently blank a value.
+        - Two properties mapping onto the same variable name are ambiguous, so the
+          whole mapping is built and checked before any value is read.
+
+        The environment is read once, here, so later changes to it do not alter an
+        already-built instance.
+        :param namespace: prefix every variable must carry, e.g. "SHERPA_"
+        """
+        env_names = {}
+        for key in self.properties:
+            env_name = namespace + key.upper().replace(".", "_")
+            if env_name in env_names:
+                validators.raise_and_log(self.logger, ValueError, "Properties '{}' and '{}' both map to environment variable {}", env_names[env_name], key, env_name)
+            env_names[env_name] = key
+
+        unknown = sorted(name for name in environ if name.startswith(namespace) and name not in env_names)
+        if unknown:
+            validators.raise_and_log(self.logger, ValueError, "Environment variable(s) {} carry the '{}' namespace but match no property (check for typos)", ", ".join(unknown), namespace)
+
+        overridden = []
+        for env_name, key in env_names.items():
+            if env_name not in environ:
+                continue
+            value = environ[env_name]
+            if not value:
+                validators.raise_and_log(self.logger, ValueError, "Environment variable {} is set but empty; unset it to keep the value coming from the properties files", env_name)
+            self.properties[key] = value
+            self._sources[key] = env_name
+            overridden.append(key)
+        # Log the keys, never the values: this layer is where secrets arrive.
+        self.logger.debug("Applied {} environment override(s): {}", len(overridden), sorted(overridden))
 
     def replace(self, path, extension=None):
         """
