@@ -175,29 +175,27 @@ def _parse_manifest_specs(file_path):
     return specs, values
 
 
-def validate_properties_file(properties_file_path, default_properties_file_path, logger=None):
+def _collect_property_errors(specs, effective, sources=None):
     """
-    Validate that properties_file_path satisfies the @type/@values/@required/
-    @required_if specs declared in comments above each key in
-    default_properties_file_path. Values are checked as effective values:
-    default_properties_file_path's value overridden by properties_file_path's,
-    if present.
-    Raises ValueError listing every violation found. Meant to run before a
-    Properties instance is created, so it takes file paths rather than a
-    Properties object.
-    :param properties_file_path: path to the overriding properties file (e.g. local.properties)
-    :param default_properties_file_path: path to the annotated default properties file (e.g. default.properties)
-    :param logger: Identicum logger - if None, a default one is created
+    Check effective values against specs and return every violation as a list of
+    messages, rather than raising on the first one: a caller fixing a configuration
+    file wants the whole list in one run.
+    Shared by validate_properties_file (which checks a file it is handed) and by
+    Properties._validate (which checks the values it resolved), so both report the
+    same problems with the same wording.
+    :param specs: key -> spec dict, as returned by _parse_manifest_specs
+    :param effective: key -> value dict, already resolved through every layer
+    :param sources: optional key -> layer name, used to point each bad value at where it came from
+    :return: a list of str, empty when everything validates
     """
-    logger = logger if logger is not None else Logger("basics")
-    specs, default_values = _parse_manifest_specs(default_properties_file_path)
-    override_values = _parse_properties_file(properties_file_path)
-    effective = default_values.copy()
-    effective.update(override_values)
+    def described(key, value):
+        source = sources.get(key) if sources else None
+        return "'{}' (from {})".format(value, source) if source else "'{}'".format(value)
 
     errors = []
-    unknown_keys = sorted(set(override_values) - set(specs))
-    for key in unknown_keys:
+    # Every key of the annotated file gets a spec, so anything absent from specs was
+    # introduced by a later layer and is therefore not in the catalog.
+    for key in sorted(key for key in effective if key not in specs):
         errors.append("{} is not a recognized property (check for typos)".format(key))
 
     for key, spec in specs.items():
@@ -213,12 +211,37 @@ def validate_properties_file(properties_file_path, default_properties_file_path,
                     break
             continue
         if spec["type"] == "enum" and spec["values"] and value not in spec["values"]:
-            errors.append("{} has value '{}', expected one of {}".format(key, value, spec["values"]))
+            errors.append("{} has value {}, expected one of {}".format(key, described(key, value), spec["values"]))
         elif spec["type"] == "bool" and value.lower() not in ("true", "false"):
-            errors.append("{} has value '{}', expected true/false".format(key, value))
+            errors.append("{} has value {}, expected true/false".format(key, described(key, value)))
         elif spec["type"] == "int" and not re.fullmatch(r"-?\d+", value):
-            errors.append("{} has value '{}', expected an integer".format(key, value))
+            errors.append("{} has value {}, expected an integer".format(key, described(key, value)))
 
+    return errors
+
+
+def validate_properties_file(properties_file_path, default_properties_file_path, logger=None):
+    """
+    Validate that properties_file_path satisfies the @type/@values/@required/
+    @required_if specs declared in comments above each key in
+    default_properties_file_path. Values are checked as effective values:
+    default_properties_file_path's value overridden by properties_file_path's,
+    if present.
+    Raises ValueError listing every violation found. Takes file paths rather than a
+    Properties object, so it can check a file that no Properties instance will ever
+    load - validating a set of environment overlay files, say. To validate the values
+    a Properties instance actually resolved, including its environment layer, use its
+    validate constructor flag instead.
+    :param properties_file_path: path to the overriding properties file (e.g. local.properties)
+    :param default_properties_file_path: path to the annotated default properties file (e.g. default.properties)
+    :param logger: Identicum logger - if None, a default one is created
+    """
+    logger = logger if logger is not None else Logger("basics")
+    specs, default_values = _parse_manifest_specs(default_properties_file_path)
+    effective = default_values.copy()
+    effective.update(_parse_properties_file(properties_file_path))
+
+    errors = _collect_property_errors(specs, effective)
     if errors:
         validators.raise_and_log(logger, ValueError, "{} failed properties validation:\n  - {}".format(
             properties_file_path, "\n  - ".join(errors)))
@@ -233,9 +256,12 @@ class Properties:
 
         The environment layer is optional and only active when env_namespace is
         given. See _apply_env_layer for its rules.
+
+        Validation against the specs annotated in default_props_file_path is optional
+        too, and only active when validate is True. See _validate.
         """
 
-    def __init__(self, props_file_path="./local.properties", default_props_file_path="./sample.properties", param_prefix="{{", param_suffix="}}", logger=None, *, env_namespace=None):
+    def __init__(self, props_file_path="./local.properties", default_props_file_path="./sample.properties", param_prefix="{{", param_suffix="}}", logger=None, *, env_namespace=None, validate=False):
         self.logger = logger if logger is not None else Logger("Properties")
         self.logger.debug("Properties version: " + version("sherpa-py-utils"))
         self.param_prefix = param_prefix
@@ -256,6 +282,8 @@ class Properties:
         # self.logger.trace("Properties: {}", self.properties)
         if env_namespace:
             self._apply_env_layer(env_namespace)
+        if validate:
+            self._validate(default_props_file_path)
 
     def get(self, key):
         return self.properties.get(key, None)
@@ -320,6 +348,29 @@ class Properties:
             overridden.append(key)
         # Log the keys, never the values: this layer is where secrets arrive.
         self.logger.debug("Applied {} environment override(s): {}", len(overridden), sorted(overridden))
+
+    def _validate(self, default_props_file_path):
+        """
+        Check the resolved properties against the @type/@values/@required/@required_if
+        specs annotated in the default file, and raise ValueError listing every
+        violation.
+
+        Runs once, after every layer has been merged, because the intermediate states
+        are legitimately invalid: a key can be made required by the local layer and
+        satisfied by the environment one, so validating layer by layer would reject a
+        configuration whose final values are fine.
+
+        Each bad value is reported together with the layer it came from, which with
+        three layers is most of the fix - knowing that log.level is invalid is not much
+        use without knowing which file or variable set it.
+        :param default_props_file_path: path to the annotated default properties file
+        """
+        specs, _ = _parse_manifest_specs(default_props_file_path)
+        errors = _collect_property_errors(specs, self.properties, self._sources)
+        if errors:
+            validators.raise_and_log(self.logger, ValueError, "resolved properties failed validation:\n  - {}".format(
+                "\n  - ".join(errors)))
+        self.logger.debug("Validated {} propertie(s) against {}", len(self.properties), default_props_file_path)
 
     def replace(self, path, extension=None):
         """
