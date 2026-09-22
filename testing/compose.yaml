@@ -19,7 +19,7 @@ services:
 
     idp:
         container_name: idp
-        image: ghcr.io/identicum/keycloak:26.1
+        image: ghcr.io/identicum/keycloak:26.7
         restart: always
         ports:
             - 8080:8080
