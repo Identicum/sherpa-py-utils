@@ -3,3 +3,4 @@ __pycache__
 .idea
 build
 sherpa_py_utils.egg-info
+sherpa_logger.log

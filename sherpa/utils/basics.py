@@ -452,6 +452,12 @@ class Template:
     Directives look like (default XML/HTML comment_start/comment_end):
         <!-- IF google.enabled --> ... <!-- ENDIF -->
         <!-- IF google.groups == "XXX" --> ... <!-- ENDIF -->
+        <!-- IF google.enabled OR entraid.enabled --> ... <!-- ENDIF -->
+        <!-- IF google.enabled AND google.groups == "XXX" --> ... <!-- ENDIF -->
+    OR/AND combine any number of atomic conditions (bare truthy check, ==, !=,
+    each optionally negated with "!" or "not "); AND binds tighter than OR, and
+    there's no parentheses support for overriding that.
+
     Blocks may repeat any number of times in a file and may nest. A directive
     that sits alone on its own line also consumes that line's indentation and
     trailing newline, so removing a block doesn't leave a blank line behind; a
@@ -574,6 +580,17 @@ class Template:
         return "".join(output), index, None
 
     def _evaluate_condition(self, expr):
+        if not expr.strip():
+            validators.raise_and_log(self.logger, ValueError, "IF directive has an empty condition")
+
+        # AND binds tighter than OR; no parentheses support.
+        or_groups = re.split(r"\s+OR\s+", expr, flags=re.IGNORECASE)
+        return any(
+            all(self._evaluate_atomic_condition(term.strip()) for term in re.split(r"\s+AND\s+", group, flags=re.IGNORECASE))
+            for group in or_groups
+        )
+
+    def _evaluate_atomic_condition(self, expr):
         negate = False
         if expr.startswith("!"):
             negate = True
