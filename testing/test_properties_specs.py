@@ -10,7 +10,9 @@ import tempfile
 
 sys.path.insert(1, "../")
 from sherpa.utils.basics import Logger
+from sherpa.utils.basics import get_property_errors
 from sherpa.utils.basics import get_property_specs
+from sherpa.utils.basics import read_properties_file
 from sherpa.utils.basics import validate_properties_file
 
 
@@ -113,6 +115,30 @@ def test_new_tags_do_not_affect_validation(logger, tmp_dir):
 	logger.info("test_new_tags_do_not_affect_validation passed")
 
 
+def test_read_properties_file_keeps_values_and_order(logger, tmp_dir):
+	values = read_properties_file(write_default(tmp_dir))
+	assert list(values) == ["master_password", "organization_name", "iga.ad.enabled", "iga.ad.hostname", "untagged"], list(values)
+	assert values["master_password"] == "Sherpa.2026" and values["iga.ad.hostname"] == "", values
+	logger.info("test_read_properties_file_keeps_values_and_order passed")
+
+
+def test_property_errors_are_returned_not_raised(logger, tmp_dir):
+	default_path = write_default(tmp_dir)
+	specs = get_property_specs(default_path)
+	effective = {**read_properties_file(default_path), "iga.ad.enabled": "true", "organization_name": ""}
+	errors = get_property_errors(specs, effective)
+	assert len(errors) == 2, errors
+	assert sorted(error.split(" ", 1)[0] for error in errors) == ["iga.ad.hostname", "organization_name"], errors
+	logger.info("test_property_errors_are_returned_not_raised passed")
+
+
+def test_property_errors_empty_when_valid(logger, tmp_dir):
+	default_path = write_default(tmp_dir)
+	effective = {**read_properties_file(default_path), "iga.ad.enabled": "true", "iga.ad.hostname": "dc1"}
+	assert get_property_errors(get_property_specs(default_path), effective) == []
+	logger.info("test_property_errors_empty_when_valid passed")
+
+
 def run(logger):
 	with tempfile.TemporaryDirectory() as tmp_dir:
 		test_keys_keep_file_order(logger, tmp_dir)
@@ -123,6 +149,9 @@ def run(logger):
 		test_secret_only_when_tagged_true(logger, tmp_dir)
 		test_validation_specs_are_unchanged(logger, tmp_dir)
 		test_new_tags_do_not_affect_validation(logger, tmp_dir)
+		test_read_properties_file_keeps_values_and_order(logger, tmp_dir)
+		test_property_errors_are_returned_not_raised(logger, tmp_dir)
+		test_property_errors_empty_when_valid(logger, tmp_dir)
 
 
 def main():

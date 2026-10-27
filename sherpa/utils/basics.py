@@ -109,10 +109,11 @@ class Logger(object):
         return switcher.get(argument, "Invalid level")
 
 
-def _parse_properties_file(file_path):
+def read_properties_file(file_path):
     """
-    Read a property file into a plain dict, ignoring comments/blank lines.
-    Module-level so it can be reused without a Properties/Logger instance.
+    Read a property file into a plain dict (in file order), ignoring comments/blank lines.
+    Module-level so it can be reused without a Properties/Logger instance, and without
+    the layering, placeholder or validation behavior of Properties.
     """
     separator = "="
     comment_char = "#"
@@ -195,18 +196,19 @@ def get_property_specs(default_properties_file_path):
     return specs
 
 
-def _collect_property_errors(specs, effective, sources=None):
+def get_property_errors(specs, effective, sources=None):
     """
     Check effective values against specs and return every violation as a list of
     messages, rather than raising on the first one: a caller fixing a configuration
     file wants the whole list in one run.
     Shared by validate_properties_file (which checks a file it is handed) and by
     Properties._validate (which checks the values it resolved), so both report the
-    same problems with the same wording.
-    :param specs: key -> spec dict, as returned by _parse_manifest_specs
+    same problems with the same wording. Also usable by callers that assemble the
+    effective values themselves (e.g. one set per environment).
+    :param specs: key -> spec dict, as returned by get_property_specs
     :param effective: key -> value dict, already resolved through every layer
     :param sources: optional key -> layer name, used to point each bad value at where it came from
-    :return: a list of str, empty when everything validates
+    :return: a list of str, each starting with the offending key; empty when everything validates
     """
     def described(key, value):
         source = sources.get(key) if sources else None
@@ -259,9 +261,9 @@ def validate_properties_file(properties_file_path, default_properties_file_path,
     logger = logger if logger is not None else Logger("basics")
     specs, default_values = _parse_manifest_specs(default_properties_file_path)
     effective = default_values.copy()
-    effective.update(_parse_properties_file(properties_file_path))
+    effective.update(read_properties_file(properties_file_path))
 
-    errors = _collect_property_errors(specs, effective)
+    errors = get_property_errors(specs, effective)
     if errors:
         validators.raise_and_log(logger, ValueError, "{} failed properties validation:\n  - {}".format(
             properties_file_path, "\n  - ".join(errors)))
@@ -386,7 +388,7 @@ class Properties:
         :param default_props_file_path: path to the annotated default properties file
         """
         specs, _ = _parse_manifest_specs(default_props_file_path)
-        errors = _collect_property_errors(specs, self.properties, self._sources)
+        errors = get_property_errors(specs, self.properties, self._sources)
         if errors:
             validators.raise_and_log(self.logger, ValueError, "resolved properties failed validation:\n  - {}".format(
                 "\n  - ".join(errors)))
@@ -409,7 +411,7 @@ class Properties:
         Read a property file passed as parameter
         """
         self.logger.trace("Opening file from {}", file_path)
-        return _parse_properties_file(file_path)
+        return read_properties_file(file_path)
 
     def _replace_file(self, file_path):
         """
