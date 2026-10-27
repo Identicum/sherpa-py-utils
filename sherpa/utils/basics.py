@@ -134,10 +134,14 @@ _MANIFEST_TAG_RE = re.compile(r"^#\s*@(\w+)(?:\s+(.*))?$")
 def _parse_manifest_specs(file_path):
     """
     Parse a default.properties-style file, reading the `# @tag value` comment
-    block directly above each key into a spec: {type, values, required, required_if}.
+    block directly above each key into a spec: {type, values, required, required_if,
+    section, description, default, scope, secret}.
     required_if is a list of AND-groups of (key, value) tuples; a key is
     required if ANY group matches (OR across groups, AND within a group).
-    Returns (specs, values), values being the plain key -> value dict.
+    section, description and default are None when the tag is absent; scope is
+    "customer" unless tagged `@scope environment`; secret is True only for `@secret true`.
+    Returns (specs, values), values being the plain key -> value dict. Both keep the
+    file order, which UIs built from the specs rely on.
     """
     specs = {}
     values = {}
@@ -170,9 +174,25 @@ def _parse_manifest_specs(file_path):
                 "values": [v.strip() for v in pending["values"][0].split(",")] if pending.get("values") else [],
                 "required": pending.get("required", [""])[0].strip().lower() == "true",
                 "required_if": required_if,
+                "section": pending.get("section", [None])[0],
+                "description": pending.get("description", [None])[0],
+                "default": pending.get("default", [None])[0],
+                "scope": pending.get("scope", ["customer"])[0].strip().lower(),
+                "secret": pending.get("secret", [""])[0].strip().lower() == "true",
             }
             pending = {}
     return specs, values
+
+
+def get_property_specs(default_properties_file_path):
+    """
+    Public access to the specs annotated in a default.properties-style file, for
+    tools that build on them (e.g. a configuration UI) rather than validate.
+    :param default_properties_file_path: path to the annotated default properties file
+    :return: key -> spec dict in file order, see _parse_manifest_specs for the spec fields
+    """
+    specs, _ = _parse_manifest_specs(default_properties_file_path)
+    return specs
 
 
 def _collect_property_errors(specs, effective, sources=None):
